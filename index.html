@@ -45,57 +45,96 @@ function gaussian(x, center) {
   return Math.pow(Math.E, -((x - center)*10)*((x - center)*10));
 }
 
+function deform_crater(centerX, centerY, impactSize, depth) {
+  return function(tx, ty) {
+    return gaussian(tx, centerX) *
+      Math.min(0, (tx-centerX-impactSize)*(tx-centerX+impactSize)/(impactSize*impactSize)) * 
+      Math.min(0, (ty-centerY-impactSize)*(ty-centerY+impactSize)/(impactSize*impactSize)) * 
+      -depth;
+  }
+}
+
+function surface_noise(period, intensity) {
+  return function(tx, ty) {
+    return Math.sin((ty-Math.cos(tx))*period)*intensity;
+  }
+}
+
+function nextRandom(a, b) {
+  return a + Math.random()*(b-a);
+}
+
+function initScene(scene) {
+  var seed = 1;
+  buildMoon(seed);
+}
+
 function buildMoon(scene) {
-  var deformations = [
-    function (tx, ty) {
-      return gaussian(tx, 0.0) * 0.3 * Math.cos(tx);
-    }
-  ];
+  var deformations = [];
+
+  deformations.push( surface_noise(1000, 0.001) );
+
+  // Craters
+  var craters = 500;
+  for (var i = 0; i < craters; i++) {
+    deformations.push( deform_crater(nextRandom(0, 1), nextRandom(0, 1), 0.01, 0.1) );
+  }
+
   var moon = buildPlanetoid(deformations);
   scene.add( moon );
 }
 
 function buildPlanetoid(deformations) {
   var planet = new THREE.Geometry();
-  for (var x = 0; x < 1; x+=0.005) {
-    for (var y = 0; y < 1; y+=0.005) {
-      var start = planet.vertices.length;
-      function getDeformation(tx, ty) {
-        var totalDeforms = 0;
-        for (var i = 0 ; i < deformations.length; i++) {
-          var f = deformations[i];
-          // Sample at x-1,x,x+1 to avoid seems between tx=1 and tx=0
-          totalDeforms += f(tx - 1, ty) + f(tx, ty) + f(tx + 1, ty);
+  var step = 0.01;
+  for (var x = 0; x < 1; x+=step) {
+    for (var y = 0; y < 1; y+=step) {
+      function generateFace(faceX, faceY) {
+        var start = planet.vertices.length;
+        function getDeformation(tx, ty) {
+          var totalDeforms = 0;
+          for (var i = 0 ; i < deformations.length; i++) {
+            var f = deformations[i];
+            // Sample at x-1,x,x+1 to avoid seems between tx=1 and tx=0
+            totalDeforms += f(tx - 1, ty) + f(tx, ty) + f(tx + 1, ty);
+          }
+          // Apply gaussian at the pools to wrap neatly there
+          return 1+totalDeforms;//*gaussian(ty);
         }
-        // Apply gaussian at the pools to wrap neatly there
-        return 1+totalDeforms*gaussian(ty);
-      }
-      function getVector(tx, ty) {
-        // First build the vertice for (tx, ty)
-        var circleX = Math.sin(tx*2*Math.PI)*Math.sin(ty*Math.PI);
-        var circleY = Math.cos(tx*2*Math.PI)*Math.sin(ty*Math.PI);
-        var circleZ = Math.sqrt(-(circleX*circleX+circleY*circleY-1));
-        // We also want the negative solution for sqrt()
-        if (y > 0.5) {
-          circleZ = -circleZ;
+        function getVector(tx, ty) {
+          // First build the vertice for (tx, ty)
+          var circleX = Math.sin(tx*2*Math.PI)*Math.sin(ty*Math.PI);
+          var circleY = Math.cos(tx*2*Math.PI)*Math.sin(ty*Math.PI);
+          var circleZ = Math.sqrt(-(circleX*circleX+circleY*circleY-1));
+          // We also want the negative solution for sqrt()
+          if (y >= 0.5) {
+            circleZ = -circleZ;
+          }
+          // Multiply the vector by a deformation
+          var mult = getDeformation(tx, ty);
+          // And we're done
+          return new THREE.Vector3(circleX * mult,
+                                   circleY * mult,
+                                   circleZ * mult);
         }
-        // Multiply the vector by a deformation
-        var mult = getDeformation(tx, ty);
-        // And we're done
-        return new THREE.Vector3(circleX * mult,
-                                 circleY * mult,
-                                 circleZ * mult);
+        planet.vertices.push(getVector(faceX       , faceY       ));
+        planet.vertices.push(getVector(faceX + step, faceY       ));
+        planet.vertices.push(getVector(faceX       , faceY + step));
+        planet.vertices.push(getVector(faceX + step, faceY + step));
+        planet.faces.push(new THREE.Face3( start, start+1, start+2 ));
+        planet.faces.push(new THREE.Face3( start+1, start+3, start+2 ));
       }
-      planet.vertices.push(getVector(x      , y      ));
-      planet.vertices.push(getVector(x + 0.01, y      ));
-      planet.vertices.push(getVector(x      , y + 0.01));
-      planet.vertices.push(getVector(x + 0.01, y + 0.01));
-      planet.faces.push(new THREE.Face3( start, start+1, start+2 ));
-      planet.faces.push(new THREE.Face3( start+1, start+3, start+2 ));
+      var subStep = step;
+      for (var subX = 0; subX < step; subX+=subStep) {
+        for (var subY = 0; subY < step; subY+=subStep) {
+          generateFace(x, y);
+        }
+      }
     }
   }
-  planet.computeFaceNormals();
   var geometry = planet;//   = new THREE.TorusGeometry( 1, 0.42 );
+  geometry.applyMatrix( new THREE.Matrix4().makeRotationX(-Math.PI/2) );
+  planet.computeFaceNormals();
   var material    = new THREE.MeshNormalMaterial();
   var mesh    = new THREE.Mesh( geometry, material );
   return mesh;
@@ -113,7 +152,7 @@ function init(){
   if (Detector.webgl) {
       renderer = new THREE.WebGLRenderer({
           antialias        : true,    // to get smoother output
-          preserveDrawingBuffer    : true    // to allow screenshot
+          //preserveDrawingBuffer    : true    // to allow screenshot
       });
       renderer.setClearColorHex( 0xBBBBBB, 1 );
   } else {
