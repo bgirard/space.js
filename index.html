@@ -45,27 +45,43 @@ function gaussian(x, center) {
   return Math.pow(Math.E, -((x - center)*10)*((x - center)*10));
 }
 
+function buildMoon(scene) {
+  var deformations = [
+    function (tx, ty) {
+      return gaussian(tx, 0.0) * 0.3 * Math.cos(tx);
+    }
+  ];
+  var moon = buildPlanetoid(deformations);
+  scene.add( moon );
+}
 
-function buildScene(scence) {
+function buildPlanetoid(deformations) {
   var planet = new THREE.Geometry();
   for (var x = 0; x < 1; x+=0.005) {
     for (var y = 0; y < 1; y+=0.005) {
       var start = planet.vertices.length;
       function getDeformation(tx, ty) {
-        var f = function(tx, ty) {
-          return gaussian(tx, 0.0) * 0.3 * Math.cos(tx);
+        var totalDeforms = 0;
+        for (var i = 0 ; i < deformations.length; i++) {
+          var f = deformations[i];
+          // Sample at x-1,x,x+1 to avoid seems between tx=1 and tx=0
+          totalDeforms += f(tx - 1, ty) + f(tx, ty) + f(tx + 1, ty);
         }
-        var val = 1*f(tx - 1, ty) + f(tx, ty) + 1*f(tx + 1, ty);
-        return 1+val*gaussian(ty);
+        // Apply gaussian at the pools to wrap neatly there
+        return 1+totalDeforms*gaussian(ty);
       }
       function getVector(tx, ty) {
+        // First build the vertice for (tx, ty)
         var circleX = Math.sin(tx*2*Math.PI)*Math.sin(ty*Math.PI);
         var circleY = Math.cos(tx*2*Math.PI)*Math.sin(ty*Math.PI);
         var circleZ = Math.sqrt(-(circleX*circleX+circleY*circleY-1));
+        // We also want the negative solution for sqrt()
         if (y > 0.5) {
           circleZ = -circleZ;
         }
+        // Multiply the vector by a deformation
         var mult = getDeformation(tx, ty);
+        // And we're done
         return new THREE.Vector3(circleX * mult,
                                  circleY * mult,
                                  circleZ * mult);
@@ -82,7 +98,7 @@ function buildScene(scence) {
   var geometry = planet;//   = new THREE.TorusGeometry( 1, 0.42 );
   var material    = new THREE.MeshNormalMaterial();
   var mesh    = new THREE.Mesh( geometry, material );
-  scene.add( mesh );
+  return mesh;
   
 }
 
@@ -136,7 +152,7 @@ function init(){
 
   // here you add your objects
   // - you will most likely replace this part by your own
-  buildScene(scene);
+  buildMoon(scene);
 }
 
 // animation loop
