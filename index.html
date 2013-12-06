@@ -37,19 +37,35 @@
 var stats, scene, renderer;
 var camera, cameraControls;
 
+// graph e^(-((x-0.5)*10)^2)) from 0 to 1
+function gaussian(x, center) {
+  if (center == null) {
+    center = 0.5;
+  }
+  return Math.pow(Math.E, -((x - center)*10)*((x - center)*10));
+}
+
+
 function buildScene(scence) {
   var planet = new THREE.Geometry();
   for (var x = 0; x < 1; x+=0.005) {
     for (var y = 0; y < 1; y+=0.005) {
       var start = planet.vertices.length;
-      function getVector(x, y) {
-        var circleX = Math.sin(x*2*Math.PI)*Math.sin(y*Math.PI);
-        var circleY = Math.cos(x*2*Math.PI)*Math.sin(y*Math.PI);
+      function getDeformation(tx, ty) {
+        var f = function(tx, ty) {
+          return gaussian(tx, 0.0) * 0.3 * Math.cos(tx);
+        }
+        var val = 1*f(tx - 1, ty) + f(tx, ty) + 1*f(tx + 1, ty);
+        return 1+val*gaussian(ty);
+      }
+      function getVector(tx, ty) {
+        var circleX = Math.sin(tx*2*Math.PI)*Math.sin(ty*Math.PI);
+        var circleY = Math.cos(tx*2*Math.PI)*Math.sin(ty*Math.PI);
         var circleZ = Math.sqrt(-(circleX*circleX+circleY*circleY-1));
         if (y > 0.5) {
           circleZ = -circleZ;
         }
-        var mult = 1 + 0.1 * Math.cos(2*y*Math.PI)*Math.sin(y*Math.PI);
+        var mult = getDeformation(tx, ty);
         return new THREE.Vector3(circleX * mult,
                                  circleY * mult,
                                  circleZ * mult);
