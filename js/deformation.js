@@ -10,6 +10,7 @@ deformation.prototype = {
 };
 
 deformation.crater = function deformation_crater(centerX, centerY, impactSize, depth) {
+  var _bounds = [centerX-impactSize*1.5, centerY-impactSize*1.5, centerX+impactSize*1.5, centerY+impactSize*1.5];
   var deform = new deformation({
     name: "Crater",
     func: function(tx, ty) {
@@ -21,7 +22,7 @@ deformation.crater = function deformation_crater(centerX, centerY, impactSize, d
       return v;
     },
     bounds: function() {
-      return [centerX-impactSize, centerY-impactSize, impactSize*2, impactSize*2];
+      return _bounds;
     },
   });
   return deform;

@@ -38,7 +38,6 @@
     <script type="text/javascript">
 var stats, scene, renderer;
 var camera, cameraControls;
-var moonLOD = [];
 
 document.body.onkeypress = function(e) {
   if (e.charCode == 91) {
@@ -100,7 +99,7 @@ function buildMoon(lod) {
   //deformations.push( surface_noise(1000, 0.0001) );
 
   // Craters
-  var craters = 5;
+  var craters = 500;
   for (var i = 0; i < craters; i++) {
     deformations.push( deformation.crater(nextRandom(0, 1), nextRandom(0, 1), 0.01, 0.01) );
   }
@@ -129,6 +128,23 @@ function buildPlanetoid(deformations, lod) {
     for (var y = 0; y < 1; y+=step) {
       function generateFace(faceX, faceY, currStep, deformations) {
         var start = planet.vertices.length;
+        var newDeforms = null;
+        for (var i = 0; i < deformations.length; i++) {
+          var bounds = deformations[i].bounds();
+          if (bounds[0] > faceX + currStep ||
+              bounds[2] < faceX ||
+              bounds[1] > faceY + currStep ||
+              bounds[3] < faceY) {
+            if (newDeforms == null) {
+              newDeforms = deformations.slice(0, i);
+            }
+          } else if (newDeforms) {
+            newDeforms.push(deformations[i]);
+          }
+        }
+        if (newDeforms) {
+          deformations = newDeforms;
+        }
         function getDeformation(deformations, tx, ty) {
           var totalDeforms = 0;
           for (var i = 0 ; i < deformations.length; i++) {
@@ -230,11 +246,6 @@ function init(){
   camera.position.set(0, 0, 15);
   scene.add(camera);
 
-  moonLOD.push( buildMoon(1) );
-  moonLOD.push( buildMoon(2) );
-  moonLOD.push( buildMoon(3) );
-  moonLOD.push( buildMoon(4) );
-
   // create a camera contol
   cameraControls    = new THREEx.DragPanControls(camera)
 
@@ -250,6 +261,7 @@ function init(){
 
   // here you add your objects
   // - you will most likely replace this part by your own
+  setTimeout(updateMesh, 100);
 }
 
 // animation loop
@@ -267,32 +279,17 @@ function animate() {
   stats.update();
 }
 
-
-var currLOD = 1;
-
+function updateMesh() {
+  if (window.lastMoon) {
+    window.scene.remove(lastMoon);
+  }
+  lastMoon = buildMoon();
+  scene.add(lastMoon);
+  setTimeout(updateMesh, 100);
+}
 
 // render the scene
 function render() {
-
-  var nextLOD;
-  if (camera.position.length() < 3) {
-    nextLOD = 4;
-  } else if (camera.position.length() < 7) {
-    nextLOD = 3;
-  } else if (camera.position.length() < 10) { 
-    nextLOD = 2;
-  } else {
-    nextLOD = 1;
-  }
-
-  if (true || currLOD != nextLOD) {
-    if (window.lastMoon) {
-      window.scene.remove(lastMoon);
-    }
-    lastMoon = buildMoon(1);//moonLOD[nextLOD-1];
-    scene.add(lastMoon);
-    currLOD = nextLOD;
-  }
 
   // update camera controls
   cameraControls.update();
