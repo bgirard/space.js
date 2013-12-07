@@ -36,6 +36,16 @@
     <script type="text/javascript">
 var stats, scene, renderer;
 var camera, cameraControls;
+var moonLOD = [];
+
+document.body.onkeypress = function(e) {
+  if (e.charCode == 91) {
+    camera.position.z -= 0.1;
+  } else if (e.charCode == 93) {  
+    camera.position.z += 0.1;
+  }
+
+}
 
 // graph e^(-((x-0.5)*10)^2)) from 0 to 1
 function gaussian(x, center) {
@@ -47,10 +57,18 @@ function gaussian(x, center) {
 
 function deform_crater(centerX, centerY, impactSize, depth) {
   return function(tx, ty) {
-    return gaussian(tx, centerX) *
-      Math.min(0, (tx-centerX-impactSize)*(tx-centerX+impactSize)/(impactSize*impactSize)) * 
-      Math.min(0, (ty-centerY-impactSize)*(ty-centerY+impactSize)/(impactSize*impactSize)) * 
-      -depth;
+    var v = 
+    Math.min(0, 
+      (
+        (tx-centerX-impactSize)*(tx-centerX+impactSize)/(impactSize*impactSize)/2 +
+        (ty-centerY-impactSize)*(ty-centerY+impactSize)/(impactSize*impactSize)/2
+      ) * depth
+    );
+    if (v != 0) {
+      v++;
+      v--;
+    }
+    return v;
   }
 }
 
@@ -60,43 +78,55 @@ function surface_noise(period, intensity) {
   }
 }
 
+function random() {
+  var x = Math.sin(window.seed++) * 10000;
+  return x - Math.floor(x);
+}
+
 function nextRandom(a, b) {
-  return a + Math.random()*(b-a);
+  window.seed =+ Math.sin(window.seed*10000) + window.seed;
+  return a + Math.abs(random())*(b-a);
 }
 
-function initScene(scene) {
-  var seed = 1;
-  buildMoon(seed);
+function initScene(scene, lod) {
+  //buildMoon(seed);
 }
 
-function buildMoon(scene) {
+function buildMoon(lod) {
+  window.seed = 100;
   var deformations = [];
 
-  deformations.push( surface_noise(1000, 0.001) );
+  deformations.push( surface_noise(1000, 0.0001) );
 
   // Craters
-  var craters = 500;
+  var craters = 250;
   for (var i = 0; i < craters; i++) {
-    deformations.push( deform_crater(nextRandom(0, 1), nextRandom(0, 1), 0.01, 0.1) );
+    deformations.push( deform_crater(nextRandom(0, 1), nextRandom(0, 1), 0.01, 0.01) );
   }
 
-  var moon = buildPlanetoid(deformations);
-  scene.add( moon );
+  var moon = buildPlanetoid(deformations, lod);
+  return moon;
 }
 
-function buildPlanetoid(deformations) {
+function buildPlanetoid(deformations, lod) {
   var planet = new THREE.Geometry();
-  var step = 0.01;
+  var step = 0.02;
   for (var x = 0; x < 1; x+=step) {
     for (var y = 0; y < 1; y+=step) {
-      function generateFace(faceX, faceY) {
+      function generateFace(faceX, faceY, currStep) {
         var start = planet.vertices.length;
         function getDeformation(tx, ty) {
           var totalDeforms = 0;
           for (var i = 0 ; i < deformations.length; i++) {
             var f = deformations[i];
             // Sample at x-1,x,x+1 to avoid seems between tx=1 and tx=0
-            totalDeforms += f(tx - 1, ty) + f(tx, ty) + f(tx + 1, ty);
+            totalDeforms += f(tx, ty);
+            if (tx < 0.2) {
+              totalDeforms += f(tx + 1, ty);
+            }
+            if (tx > 0.8) {
+              totalDeforms += f(tx - 1, ty);
+            }
           }
           // Apply gaussian at the pools to wrap neatly there
           return 1+totalDeforms;//*gaussian(ty);
@@ -107,7 +137,7 @@ function buildPlanetoid(deformations) {
           var circleY = Math.cos(tx*2*Math.PI)*Math.sin(ty*Math.PI);
           var circleZ = Math.sqrt(-(circleX*circleX+circleY*circleY-1));
           // We also want the negative solution for sqrt()
-          if (y >= 0.5) {
+          if (ty >= 0.5) {
             circleZ = -circleZ;
           }
           // Multiply the vector by a deformation
@@ -117,17 +147,30 @@ function buildPlanetoid(deformations) {
                                    circleY * mult,
                                    circleZ * mult);
         }
-        planet.vertices.push(getVector(faceX       , faceY       ));
-        planet.vertices.push(getVector(faceX + step, faceY       ));
-        planet.vertices.push(getVector(faceX       , faceY + step));
-        planet.vertices.push(getVector(faceX + step, faceY + step));
+        planet.vertices.push(getVector(faceX           , faceY           ));
+        planet.vertices.push(getVector(faceX + currStep, faceY           ));
+        planet.vertices.push(getVector(faceX           , faceY + currStep));
+        planet.vertices.push(getVector(faceX + currStep, faceY + currStep));
         planet.faces.push(new THREE.Face3( start, start+1, start+2 ));
         planet.faces.push(new THREE.Face3( start+1, start+3, start+2 ));
       }
       var subStep = step;
+      if (y > 0.45 && y < 0.55 &&
+          x > 0.45 && x < 0.55 && lod >= 4) {
+        subStep = subStep / 40;
+      } else if (y > 0.45 && y < 0.55 &&
+          x > 0.45 && x < 0.55 && lod >= 3) {
+        subStep = subStep / 10;
+      } else if (y > 0.3 && y < 0.7 &&
+          x > 0.3 && x < 0.7 && lod >= 4) {
+        subStep = subStep / 10;
+      } else if (y > 0.3 && y < 0.7 &&
+          x > 0.3 && x < 0.7 && lod >= 2) {
+        subStep = subStep / 2;
+      }
       for (var subX = 0; subX < step; subX+=subStep) {
         for (var subY = 0; subY < step; subY+=subStep) {
-          generateFace(x, y);
+          generateFace(x + subX, y + subY, subStep);
         }
       }
     }
@@ -170,11 +213,17 @@ function init(){
 
   // create a scene
   scene = new THREE.Scene();
+  window.scene = scene;
 
   // put a camera in the scene
   camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 10000 );
-  camera.position.set(0, 0, 5);
+  camera.position.set(0, 0, 15);
   scene.add(camera);
+
+  moonLOD.push( buildMoon(1) );
+  moonLOD.push( buildMoon(2) );
+  moonLOD.push( buildMoon(3) );
+  moonLOD.push( buildMoon(4) );
 
   // create a camera contol
   cameraControls    = new THREEx.DragPanControls(camera)
@@ -191,7 +240,6 @@ function init(){
 
   // here you add your objects
   // - you will most likely replace this part by your own
-  buildMoon(scene);
 }
 
 // animation loop
@@ -209,8 +257,33 @@ function animate() {
   stats.update();
 }
 
+
+var currLOD = 1;
+
+
 // render the scene
 function render() {
+
+  var nextLOD;
+  if (camera.position.length() < 3) {
+    nextLOD = 4;
+  } else if (camera.position.length() < 7) {
+    nextLOD = 3;
+  } else if (camera.position.length() < 10) { 
+    nextLOD = 2;
+  } else {
+    nextLOD = 1;
+  }
+
+  if (currLOD != nextLOD) {
+    if (window.lastMoon) {
+      window.scene.remove(lastMoon);
+    }
+    lastMoon = moonLOD[nextLOD-1];
+    scene.add(lastMoon);
+    currLOD = nextLOD;
+  }
+  document.title = "LOD: " + currLOD;
 
   // update camera controls
   cameraControls.update();
