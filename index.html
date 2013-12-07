@@ -40,9 +40,9 @@ var moonLOD = [];
 
 document.body.onkeypress = function(e) {
   if (e.charCode == 91) {
-    camera.position.z -= 0.1;
+    camera.position.z = (camera.position.z-1)/2 + 1;
   } else if (e.charCode == 93) {  
-    camera.position.z += 0.1;
+    camera.position.z = (camera.position.z-1)*2 + 1;
   }
 
 }
@@ -84,8 +84,7 @@ function random() {
 }
 
 function nextRandom(a, b) {
-  window.seed =+ Math.sin(window.seed*10000) + window.seed;
-  return a + Math.abs(random())*(b-a);
+  return a + random()*(b-a);
 }
 
 function initScene(scene, lod) {
@@ -99,13 +98,23 @@ function buildMoon(lod) {
   deformations.push( surface_noise(1000, 0.0001) );
 
   // Craters
-  var craters = 250;
+  var craters = 2;
   for (var i = 0; i < craters; i++) {
     deformations.push( deform_crater(nextRandom(0, 1), nextRandom(0, 1), 0.01, 0.01) );
   }
+  deformations.push( deform_crater(0.5, 0.5, 0.01, 0.01) );
 
   var moon = buildPlanetoid(deformations, lod);
   return moon;
+}
+
+function subdivide(vector, step) {
+  vector.applyMatrix4( new THREE.Matrix4().makeRotationX(-Math.PI/2) );
+  if (camera.position.distanceTo(vector) < step*100) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 function buildPlanetoid(deformations, lod) {
@@ -147,6 +156,14 @@ function buildPlanetoid(deformations, lod) {
                                    circleY * mult,
                                    circleZ * mult);
         }
+        var subStep = currStep/2;
+        if (subdivide(getVector(faceX + subStep, faceY + subStep), currStep)) {
+          generateFace(faceX, faceY, subStep);
+          generateFace(faceX+subStep, faceY, subStep);
+          generateFace(faceX, faceY+subStep, subStep);
+          generateFace(faceX+subStep, faceY+subStep, subStep);
+          return;
+        }
         planet.vertices.push(getVector(faceX           , faceY           ));
         planet.vertices.push(getVector(faceX + currStep, faceY           ));
         planet.vertices.push(getVector(faceX           , faceY + currStep));
@@ -155,19 +172,6 @@ function buildPlanetoid(deformations, lod) {
         planet.faces.push(new THREE.Face3( start+1, start+3, start+2 ));
       }
       var subStep = step;
-      if (y > 0.45 && y < 0.55 &&
-          x > 0.45 && x < 0.55 && lod >= 4) {
-        subStep = subStep / 40;
-      } else if (y > 0.45 && y < 0.55 &&
-          x > 0.45 && x < 0.55 && lod >= 3) {
-        subStep = subStep / 10;
-      } else if (y > 0.3 && y < 0.7 &&
-          x > 0.3 && x < 0.7 && lod >= 4) {
-        subStep = subStep / 10;
-      } else if (y > 0.3 && y < 0.7 &&
-          x > 0.3 && x < 0.7 && lod >= 2) {
-        subStep = subStep / 2;
-      }
       for (var subX = 0; subX < step; subX+=subStep) {
         for (var subY = 0; subY < step; subY+=subStep) {
           generateFace(x + subX, y + subY, subStep);
@@ -175,6 +179,7 @@ function buildPlanetoid(deformations, lod) {
       }
     }
   }
+  document.title = planet.vertices.length + "Zoom: " + camera.position.z;
   var geometry = planet;//   = new THREE.TorusGeometry( 1, 0.42 );
   geometry.applyMatrix( new THREE.Matrix4().makeRotationX(-Math.PI/2) );
   planet.computeFaceNormals();
@@ -216,7 +221,7 @@ function init(){
   window.scene = scene;
 
   // put a camera in the scene
-  camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 10000 );
+  camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.00001, 100 );
   camera.position.set(0, 0, 15);
   scene.add(camera);
 
@@ -275,15 +280,14 @@ function render() {
     nextLOD = 1;
   }
 
-  if (currLOD != nextLOD) {
+  if (true || currLOD != nextLOD) {
     if (window.lastMoon) {
       window.scene.remove(lastMoon);
     }
-    lastMoon = moonLOD[nextLOD-1];
+    lastMoon = buildMoon(1);//moonLOD[nextLOD-1];
     scene.add(lastMoon);
     currLOD = nextLOD;
   }
-  document.title = "LOD: " + currLOD;
 
   // update camera controls
   cameraControls.update();

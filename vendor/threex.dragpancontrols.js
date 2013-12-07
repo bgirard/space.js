@@ -10,8 +10,8 @@ THREEx.DragPanControls	= function(object, domElement)
 	this.target	= new THREE.Vector3(0, 0, 0);
 	this.speedX	= 0.03;
 	this.speedY	= 0.03;
-	this.rangeX	= -40;
-	this.rangeY	= +40;
+	this.rangeX	= -3;
+	this.rangeY	= +3;
 
 	// private variables
 	this._mouseX	= 0;
