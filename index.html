@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
     <head>
-        <title>learningthree.js boiler plate for three.js</title>
+        <title>space.js</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
         
@@ -18,6 +18,8 @@
 
         <script src="js/deformation.js"></script>
         <script src="js/planetoid.js"></script>
+        <script src="js/debug_panel.js"></script>
+        <script src="js/utils.js"></script>
 
         <link  href="css/main.css" rel="stylesheet"/>
     </head>
@@ -37,6 +39,10 @@
     <script type="text/javascript">
 var stats, scene, renderer;
 var camera, cameraControls;
+
+var currPlanetoid = null;
+
+var debugPanel;
 
 document.body.onkeypress = function(e) {
   if (e.charCode == 93) {
@@ -64,8 +70,10 @@ function nextRandom(a, b) {
   return a + random()*(b-a);
 }
 
-function buildMoon() {
-  window.seed = 100;
+function buildDefaultPlanetoid(options) {
+  options = options || {};
+  window.seed = options.seed || 100;
+
   var deformations = [];
 
   deformations.push( deformation.noise(1000, 0.001) );
@@ -127,7 +135,7 @@ function init(){
   scene.add(camera);
 
   // create a camera contol
-  cameraControls    = new THREEx.DragPanControls(camera)
+  cameraControls    = new THREEx.DragPanControls(camera, renderer.domElement)
 
   // transparently support window resize
   THREEx.WindowResize.bind(renderer, camera);
@@ -145,6 +153,16 @@ function init(){
   material.side  = THREE.BackSide;
   var stars  = new THREE.Mesh(geometry, material);
   scene.add(stars);
+
+  debugPanel = new DebugPanel(document.getElementById("info"), currPlanetoid);
+  debugPanel.generatedPlanetoidCallback(function (planetoid) {
+    if (currPlanetoid) {
+      currPlanetoid.remove(scene);
+    }
+    currPlanetoid = planetoid;
+    currPlanetoid.add(scene);
+  });
+  debugPanel.generate();
 
   // here you add your objects
   // - you will most likely replace this part by your own
@@ -167,12 +185,7 @@ function animate() {
 }
 
 function updateMesh() {
-  if (window.lastMoon) {
-    lastMoon.updateGeom(scene);
-  } else {
-    lastMoon = buildMoon();
-    scene.add(lastMoon.getMesh());
-  }
+  currPlanetoid.updateGeom(scene);
   setTimeout(updateMesh, 100);
 }
 

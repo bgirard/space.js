@@ -116,6 +116,14 @@ Planetoid.prototype.getMesh = function() {
   return this._mesh;
 };
 
+Planetoid.prototype.add = function(scene) {
+  scene.add(this._mesh);
+};
+
+Planetoid.prototype.remove = function(scene) {
+  scene.remove(this._mesh);
+};
+
 Planetoid.prototype.updateGeom = function(scene) {
   scene.remove(this._mesh);
 

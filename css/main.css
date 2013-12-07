@@ -28,3 +28,17 @@ body {
 	right		: 5px;
 	padding		: 5px;
 }
+
+#info .debug_panel {
+  border: 1px black;
+  position: absolute;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  top: 0px;
+  right: 10px;
+  width: 200px;
+  height: calc(100% - 30px);
+  background: white;
+  padding-left: 10px;
+  padding-right: 10px;
+}
