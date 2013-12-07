@@ -1,13 +1,10 @@
-[boilerplate for three.js](https://github.com/jeromeetienne/threejsboilerplate)
-is a template to get you started. You download it and modify it until it fits your needs.
-It is a fast way to start a clean project with [three.js](https://github.com/mrdoob/three.js/).
-It avoids repetitive tasks, following DRY principles.
-It includes various good practices and compatibilities features.
-More details [here](http://learningthreejs.com/blog/2011/12/20/boilerplate-for-three-js/).
+[space.js](http://bgirard.github.io/space.js/)
+Space.js is currently an attempt to create fractal planets. If this experimental
+goes well it may be expended to generate more complex space worlds.
+
+For a demo click [here](http://bgirard.github.io/space.js/).
 
 # Get Started
-```
-git clone https://github.com/jeromeetienne/threejsboilerplate.git
-```
+If you're interested in contributing send me a pull-request.
 
-And start updating ```index.html``` until it fits yours need.
+If you'd like contact me to discuss the feature you'd like to add.

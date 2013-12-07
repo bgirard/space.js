@@ -179,7 +179,7 @@ function buildPlanetoid(deformations, lod) {
       }
     }
   }
-  document.title = planet.vertices.length + "Zoom: " + camera.position.z;
+  document.title = planet.vertices.length + " Zoom: " + toMetersStr(camera.position.z-1);
   var geometry = planet;//   = new THREE.TorusGeometry( 1, 0.42 );
   geometry.applyMatrix( new THREE.Matrix4().makeRotationX(-Math.PI/2) );
   planet.computeFaceNormals();
@@ -187,6 +187,15 @@ function buildPlanetoid(deformations, lod) {
   var mesh    = new THREE.Mesh( geometry, material );
   return mesh;
   
+}
+
+function toMetersStr(earthRadius) {
+  var val = earthRadius/1.5e-7;
+  if (val < 1000) {
+    return (val).toFixed(0) + "m";
+  } else {
+    return (val/1000).toFixed(0) + "km";
+  }
 }
 
 
