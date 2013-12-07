@@ -40,9 +40,9 @@ var stats, scene, renderer;
 var camera, cameraControls;
 
 document.body.onkeypress = function(e) {
-  if (e.charCode == 91) {
+  if (e.charCode == 93) {
     camera.position.z = (camera.position.z-1)/2 + 1;
-  } else if (e.charCode == 93) {  
+  } else if (e.charCode == 91) {  
     camera.position.z = (camera.position.z-1)*2 + 1;
   }
 
@@ -54,23 +54,6 @@ function gaussian(x, center) {
     center = 0.5;
   }
   return Math.pow(Math.E, -((x - center)*10)*((x - center)*10));
-}
-
-function deform_crater(centerX, centerY, impactSize, depth) {
-  return function(tx, ty) {
-    var v = 
-    Math.min(0, 
-      (
-        (tx-centerX-impactSize)*(tx-centerX+impactSize)/(impactSize*impactSize)/2 +
-        (ty-centerY-impactSize)*(ty-centerY+impactSize)/(impactSize*impactSize)/2
-      ) * depth
-    );
-    if (v != 0) {
-      v++;
-      v--;
-    }
-    return v;
-  }
 }
 
 function surface_noise(period, intensity) {
@@ -88,11 +71,7 @@ function nextRandom(a, b) {
   return a + random()*(b-a);
 }
 
-function initScene(scene, lod) {
-  //buildMoon(seed);
-}
-
-function buildMoon(lod) {
+function buildMoon() {
   window.seed = 100;
   var deformations = [];
 
@@ -105,7 +84,7 @@ function buildMoon(lod) {
   }
   deformations.push( deformation.crater(0.5, 0.5, 0.01, 0.01) );
 
-  var moon = buildPlanetoid(deformations, lod);
+  var moon = buildPlanetoid(deformations);
   return moon;
 }
 
