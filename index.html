@@ -79,7 +79,7 @@ function buildMoon() {
   }
   deformations.push( deformation.crater(0.5, 0.5, 0.01, 0.01) );
 
-  var moon = buildPlanetoid(deformations);
+  var moon = new Planetoid(deformations);
   return moon;
 }
 
@@ -141,7 +141,7 @@ function init(){
     document.getElementById('inlineDoc').innerHTML    += "- <i>f</i> for fullscreen";
   }
 
-  var geometry  = new THREE.SphereGeometry(9, 32, 32);
+  var geometry  = new THREE.SphereGeometry(90, 32, 32);
   var material  = new THREE.MeshBasicMaterial();
   material.map   = THREE.ImageUtils.loadTexture("images/misc/galaxy_starfield.png");
   material.side  = THREE.BackSide;
@@ -170,10 +170,11 @@ function animate() {
 
 function updateMesh() {
   if (window.lastMoon) {
-    window.scene.remove(lastMoon);
+    lastMoon.updateGeom(scene);
+  } else {
+    lastMoon = buildMoon();
+    scene.add(lastMoon.getMesh());
   }
-  lastMoon = buildMoon();
-  scene.add(lastMoon);
   setTimeout(updateMesh, 100);
 }
 
