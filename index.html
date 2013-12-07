@@ -50,7 +50,9 @@ document.body.onkeypress = function(e) {
   } else if (e.charCode == 91) {  
     camera.position.z = (camera.position.z-1)*2 + 1;
   }
-
+  if (camera.position.z > 15) {
+    camera.position.z = 15;
+  }
 }
 
 // graph e^(-((x-0.5)*10)^2)) from 0 to 1
@@ -155,6 +157,10 @@ function init(){
     currPlanetoid.add(scene);
   });
   debugPanel.generate();
+
+  camera.refresh = function() {
+    currPlanetoid.updateGeom(scene);
+  }
 
   // here you add your objects
   // - you will most likely replace this part by your own

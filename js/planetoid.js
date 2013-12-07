@@ -1,12 +1,16 @@
+window.baseLOD = 0.02;
+window.minLOD = 1.885e-7;
+
 function Planetoid(deformations) {
-  var step = 0.02;
 
   function subdivide(vector, step) {
     //    x      y
     //  1.5e-7  1.9e-7
     //    1      0.2
     vector.applyMatrix4( new THREE.Matrix4().makeRotationX(-Math.PI/2) );
-    if (0.02*camera.position.distanceTo(vector)+1.885e-7 < step) {
+    var viewVector = camera.position.clone();
+    viewVector.z = 1;
+    if (window.baseLOD*viewVector.distanceTo(vector)+window.minLOD < step) {
       return true;
     } else {
       return false;
@@ -18,6 +22,7 @@ function Planetoid(deformations) {
   }
 
   function buildGeom() {
+    var step = window.baseLOD;
     var planet = new THREE.Geometry();
     for (var x = 0; x < 1; x+=step) {
       for (var y = 0; y < 1; y+=step) {
@@ -72,7 +77,7 @@ function Planetoid(deformations) {
                                      circleY * mult,
                                      circleZ * mult);
           }
-          var subStep = currStep/2;
+          var subStep = currStep*0.5;
           if (subdivide(getVector(faceX + subStep, faceY + subStep), currStep)) {
             generateFace(faceX, faceY, subStep, deformations);
             generateFace(faceX+subStep, faceY, subStep, deformations);
