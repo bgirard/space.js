@@ -16,6 +16,8 @@
         <script src="vendor/threex/THREEx.WindowResize.js"></script>
         <script src="vendor/threex.dragpancontrols.js"></script>
 
+        <script src="js/deformation.js"></script>
+
         <link  href="css/main.css" rel="stylesheet"/>
     </head>
 <body>
@@ -95,14 +97,14 @@ function buildMoon(lod) {
   window.seed = 100;
   var deformations = [];
 
-  deformations.push( surface_noise(1000, 0.0001) );
+  //deformations.push( surface_noise(1000, 0.0001) );
 
   // Craters
-  var craters = 2;
+  var craters = 5;
   for (var i = 0; i < craters; i++) {
-    deformations.push( deform_crater(nextRandom(0, 1), nextRandom(0, 1), 0.01, 0.01) );
+    deformations.push( deformation.crater(nextRandom(0, 1), nextRandom(0, 1), 0.01, 0.01) );
   }
-  deformations.push( deform_crater(0.5, 0.5, 0.01, 0.01) );
+  deformations.push( deformation.crater(0.5, 0.5, 0.01, 0.01) );
 
   var moon = buildPlanetoid(deformations, lod);
   return moon;
@@ -125,12 +127,12 @@ function buildPlanetoid(deformations, lod) {
   var step = 0.02;
   for (var x = 0; x < 1; x+=step) {
     for (var y = 0; y < 1; y+=step) {
-      function generateFace(faceX, faceY, currStep) {
+      function generateFace(faceX, faceY, currStep, deformations) {
         var start = planet.vertices.length;
-        function getDeformation(tx, ty) {
+        function getDeformation(deformations, tx, ty) {
           var totalDeforms = 0;
           for (var i = 0 ; i < deformations.length; i++) {
-            var f = deformations[i];
+            var f = deformations[i].func;
             // Sample at x-1,x,x+1 to avoid seems between tx=1 and tx=0
             totalDeforms += f(tx, ty);
             if (tx < 0.2) {
@@ -153,7 +155,7 @@ function buildPlanetoid(deformations, lod) {
             circleZ = -circleZ;
           }
           // Multiply the vector by a deformation
-          var mult = getDeformation(tx, ty);
+          var mult = getDeformation(deformations, tx, ty);
           // And we're done
           return new THREE.Vector3(circleX * mult,
                                    circleY * mult,
@@ -161,10 +163,10 @@ function buildPlanetoid(deformations, lod) {
         }
         var subStep = currStep/2;
         if (subdivide(getVector(faceX + subStep, faceY + subStep), currStep)) {
-          generateFace(faceX, faceY, subStep);
-          generateFace(faceX+subStep, faceY, subStep);
-          generateFace(faceX, faceY+subStep, subStep);
-          generateFace(faceX+subStep, faceY+subStep, subStep);
+          generateFace(faceX, faceY, subStep, deformations);
+          generateFace(faceX+subStep, faceY, subStep, deformations);
+          generateFace(faceX, faceY+subStep, subStep, deformations);
+          generateFace(faceX+subStep, faceY+subStep, subStep, deformations);
           return;
         }
         planet.vertices.push(getVector(faceX           , faceY           ));
@@ -177,7 +179,7 @@ function buildPlanetoid(deformations, lod) {
       var subStep = step;
       for (var subX = 0; subX < step; subX+=subStep) {
         for (var subY = 0; subY < step; subY+=subStep) {
-          generateFace(x + subX, y + subY, subStep);
+          generateFace(x + subX, y + subY, subStep, deformations);
         }
       }
     }
