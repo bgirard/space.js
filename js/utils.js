@@ -16,4 +16,13 @@ function createElement(name, props) {
   return el; 
 }
 
+function toMetersStr(earthRadius) {
+  var val = earthRadius/1.5e-7;
+  if (val < 1000) {
+    return (val).toFixed(0) + "m";
+  } else {
+    return (val/1000).toFixed(0) + "km";
+  }
+}
+
 

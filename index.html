@@ -73,13 +73,14 @@ function nextRandom(a, b) {
 function buildDefaultPlanetoid(options) {
   options = options || {};
   window.seed = options.seed || 100;
+  dump("Seed: " + window.seed + "\n");
 
   var deformations = [];
 
   deformations.push( deformation.noise(1000, 0.001) );
 
   // Craters
-  var craters = 0;
+  var craters = options.craters || 0;
   for (var i = 0; i < craters; i++) {
     deformations.push( deformation.crater(nextRandom(0, 1), nextRandom(0, 1), 0.01, 0.01) );
   }
@@ -87,15 +88,6 @@ function buildDefaultPlanetoid(options) {
 
   var moon = new Planetoid(deformations);
   return moon;
-}
-
-function toMetersStr(earthRadius) {
-  var val = earthRadius/1.5e-7;
-  if (val < 1000) {
-    return (val).toFixed(0) + "m";
-  } else {
-    return (val/1000).toFixed(0) + "km";
-  }
 }
 
 
