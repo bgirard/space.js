@@ -27,3 +27,16 @@ deformation.crater = function deformation_crater(centerX, centerY, impactSize, d
   });
   return deform;
 }
+deformation.noise = function deformation_noise(period, intensity) {
+  var _bounds = [0, 0, 1, 1];
+  var deform = new deformation({
+    name: "Crater",
+    func: function(tx, ty) {
+      return Math.sin((ty-Math.cos(tx))*period)*intensity;
+    },
+    bounds: function() {
+      return _bounds;
+    },
+  });
+  return deform;
+}
