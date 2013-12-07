@@ -109,8 +109,11 @@ function buildMoon(lod) {
 }
 
 function subdivide(vector, step) {
+  //    x      y
+  //  1.5e-7  1.9e-7
+  //    1      0.2
   vector.applyMatrix4( new THREE.Matrix4().makeRotationX(-Math.PI/2) );
-  if (camera.position.distanceTo(vector) < step*100) {
+  if (0.02*camera.position.distanceTo(vector)+1.885e-7 < step) {
     return true;
   } else {
     return false;
