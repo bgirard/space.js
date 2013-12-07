@@ -1,4 +1,4 @@
-[space.js](http://bgirard.github.io/space.js/)
+# [space.js](http://bgirard.github.io/space.js/)
 Space.js is currently an attempt to create fractal planets. If this experimental
 goes well it may be expended to generate more complex space worlds.
 
