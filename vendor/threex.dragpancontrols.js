@@ -57,6 +57,13 @@ THREEx.DragPanControls.prototype._onTouchStart	= function(event)
 	this._mouseY	= ( event.touches[ 0 ].pageY / window.innerHeight) - 0.5;
 }
 
+THREEx.DragPanControls.prototype.reset  	= function(event)
+{
+	this._mouseX	= 0;
+	this._mouseY	= 0;
+
+}
+
 THREEx.DragPanControls.prototype._onTouchMove	= function(event)
 {
 	if( event.touches.length != 1 )	return;
