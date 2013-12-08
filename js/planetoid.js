@@ -69,9 +69,6 @@ function Planetoid(deformations) {
     if (exactPoint) {
       return exactPoint;
     }
-    if (stepY != 0 && tx != 0 && ty != 0) {
-      console.log("break");
-    }
     // Or we are a subdivision of the nearby face. Then we average out the nearby face
     var p1 = interpolateExact(pointsLookup, getVector, tx - stepX, ty - stepY);
     var p2 = interpolateExact(pointsLookup, getVector, tx + stepX, ty + stepY);
@@ -118,13 +115,14 @@ function Planetoid(deformations) {
     adjustablePoints[tx][ty].push(point);
   }
 
-  function adjustPoint(adjustablePoints, tx, ty, point) {
+  function adjustPoint(adjustablePoints, tx, ty, p1, p2) {
     tx = tx.toPrecision(10);
     ty = ty.toPrecision(10);
     if (adjustablePoints[tx] == null || adjustablePoints[tx][ty] == null) {
       return false;
     }
     var pointArray = adjustablePoints[tx][ty];
+    var point = avgVector(p1, p2);
     for (var i = 0; i < pointArray.length; i++) {
       pointArray[i].set(point.x, point.y, point.z);
     }
@@ -205,8 +203,8 @@ function Planetoid(deformations) {
           var p3 = interpolateOnY(points, getVector, faceX, faceY + currStep, currStep);
           var p4 = getVector(faceX + currStep, faceY + currStep);
 
-          adjustPoint(adjustablePoints, faceX, faceY + subStep, avgVector(p1, p3));
-          adjustPoint(adjustablePoints, faceX + subStep, faceY, avgVector(p1, p2));
+          adjustPoint(adjustablePoints, faceX, faceY + subStep, p1, p3);
+          adjustPoint(adjustablePoints, faceX + subStep, faceY, p1, p2);
 
           planet.vertices.push(p1);
           planet.vertices.push(p2);
