@@ -3,6 +3,8 @@ window.minLOD = 1.885e-7;
 
 function Planetoid(deformations) {
 
+  var self = this;
+
   function subdivide(vector, step) {
     //    x      y
     //  1.5e-7  1.9e-7
@@ -18,12 +20,92 @@ function Planetoid(deformations) {
   }
 
   function generateTexture() {
+    if (self._textureCanvas == null) {
+      self._textureCanvas = document.createElement("canvas");
+      self._textureCanvas.style.position = "absolute";
+      self._textureCanvas.style.top = "0px";
+      self._textureCanvas.width = 1024;
+      self._textureCanvas.height = 1024;
+    }
+    var canvas = self._textureCanvas;
+    var ctxt = canvas.getContext("2d");
+    ctxt.fillStyle = "red";
+    ctxt.fillRect(0,0,1500,1000);
 
+    var pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    for (var y = 0; y < canvas.height; y++) {
+      for (var x = 0; x < canvas.width; x++) {
+        
+      }
+    }
+    ctxt.putImageData(pixels, 0, 0);
+
+    self._texture = new THREE.Texture(self._textureCanvas);
+    self._texture.needsUpdate = true;
+    return self._texture;
+  }
+
+  function interpolateExact(pointsLookup, getVector, tx, ty) {
+    // Either we match a point exactly
+    var exactPoint = lookup(pointsLookup, tx, ty);
+    if (exactPoint) {
+      return exactPoint;
+    }
+    if (tx != 0 && ty != 0) {
+      console.log("Exact generated at " + tx + "," + ty);
+    }
+    return getVector(tx, ty);
+  }
+
+  function interpolate(pointsLookup, getVector, tx, ty, stepX, stepY) {
+    // Either we match a point exactly
+    var exactPoint = lookup(pointsLookup, tx, ty);
+    if (exactPoint) {
+      return exactPoint;
+    }
+    if (stepY != 0 && tx != 0 && ty != 0) {
+      console.log("break");
+    }
+    // Or we are a subdivision of the nearby face. Then we average out the nearby face
+    var p1 = interpolateExact(pointsLookup, getVector, tx - stepX, ty - stepY);
+    var p2 = interpolateExact(pointsLookup, getVector, tx + stepX, ty + stepY);
+    var newP = new THREE.Vector3((p1.x + p2.x)/2,
+                                 (p1.y + p2.y)/2,
+                                 (p1.z + p2.z)/2);
+    insertPoint(pointsLookup, tx, ty, newP);
+    return newP;
+  }
+
+  function interpolateOnX(pointsLookup, getVector, tx, ty, step) {
+    return interpolate(pointsLookup, getVector, tx, ty, step, 0);
+  }
+
+  function interpolateOnY(pointsLookup, getVector, tx, ty, step) {
+    return interpolate(pointsLookup, getVector, tx, ty, 0, step);
+  }
+
+  function lookup(pointsLookup, tx, ty) {
+    tx = tx.toPrecision(10);
+    ty = ty.toPrecision(10);
+    if (pointsLookup[tx] != null && pointsLookup[tx][ty] != null) {
+      return pointsLookup[tx][ty].clone();
+    }
+    return null;
+  }
+
+  function insertPoint(pointsLookup, tx, ty, point) {
+    tx = tx.toPrecision(10);
+    ty = ty.toPrecision(10);
+    if (pointsLookup[tx] == null) {
+      pointsLookup[tx] = {};
+    }
+    pointsLookup[tx][ty] = point.clone();
   }
 
   function buildGeom() {
     var step = window.baseLOD;
     var planet = new THREE.Geometry();
+    var points = {};
     for (var x = 0; x < 1; x+=step) {
       for (var y = 0; y < 1; y+=step) {
         function generateFace(faceX, faceY, currStep, deformations) {
@@ -73,9 +155,11 @@ function Planetoid(deformations) {
             // Multiply the vector by a deformation
             var mult = getDeformation(deformations, tx, ty);
             // And we're done
-            return new THREE.Vector3(circleX * mult,
-                                     circleY * mult,
-                                     circleZ * mult);
+            var v = new THREE.Vector3(circleX * mult,
+                                      circleY * mult,
+                                      circleZ * mult);
+            insertPoint(points, tx, ty, v);
+            return v;
           }
           var subStep = currStep*0.5;
           if (subdivide(getVector(faceX + subStep, faceY + subStep), currStep)) {
@@ -85,12 +169,19 @@ function Planetoid(deformations) {
             generateFace(faceX+subStep, faceY+subStep, subStep, deformations);
             return;
           }
-          planet.vertices.push(getVector(faceX           , faceY           ));
-          planet.vertices.push(getVector(faceX + currStep, faceY           ));
-          planet.vertices.push(getVector(faceX           , faceY + currStep));
+
+          planet.vertices.push(interpolateExact(points, getVector, faceX, faceY));
+          planet.vertices.push(interpolateOnX(points, getVector, faceX + currStep, faceY, currStep));
+          //planet.vertices.push(getVector(faceX + currStep, faceY           ));
+          planet.vertices.push(interpolateOnY(points, getVector, faceX, faceY + currStep, currStep));
+          //planet.vertices.push(getVector(faceX           , faceY + currStep));
           planet.vertices.push(getVector(faceX + currStep, faceY + currStep));
+          //planet.vertices.push(interpolateOnX(points, getVector, faceX, faceY + currStep, currStep));
+          //planet.vertices.push(interpolateExact(points, getVector, faceX, faceY));
           planet.faces.push(new THREE.Face3( start, start+1, start+2 ));
+          planet.faceVertexUvs[0].push( [new THREE.Vector2(faceX, faceY), new THREE.Vector2(faceX + currStep, faceY), new THREE.Vector2(faceX, faceY + currStep)] );
           planet.faces.push(new THREE.Face3( start+1, start+3, start+2 ));
+          planet.faceVertexUvs[0].push( [new THREE.Vector2(faceX + currStep, faceY), new THREE.Vector2(faceX + currStep, faceY + currStep), new THREE.Vector2(faceX, faceY + currStep)] );
         }
         var subStep = step;
         for (var subX = 0; subX < step; subX+=subStep) {
@@ -105,9 +196,13 @@ function Planetoid(deformations) {
     document.title = planet.vertices.length + " Zoom: " + toMetersStr(camera.position.z-1);
     return planet;
   }
+  
   var planet = buildGeom();
   var geometry = planet;//   = new THREE.TorusGeometry( 1, 0.42 );
   var material    = new THREE.MeshNormalMaterial();
+  //var material = new THREE.MeshBasicMaterial({ map: generateTexture()});
+  //var material  = new THREE.MeshBasicMaterial();
+  //material.map   = THREE.ImageUtils.loadTexture("images/misc/galaxy_starfield.png");
   var mesh    = new THREE.Mesh( geometry, material );
 
   this._geom = geometry;
