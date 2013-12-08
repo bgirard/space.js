@@ -19,7 +19,7 @@ function Planetoid(deformations) {
     }
   }
 
-  function generateTexture() {
+  this.generateTexture = function generateTexture(deformations) {
     if (self._textureCanvas == null) {
       self._textureCanvas = document.createElement("canvas");
       self._textureCanvas.style.position = "absolute";
@@ -29,16 +29,24 @@ function Planetoid(deformations) {
     }
     var canvas = self._textureCanvas;
     var ctxt = canvas.getContext("2d");
-    ctxt.fillStyle = "red";
-    ctxt.fillRect(0,0,1500,1000);
+    ctxt.fillStyle = "rgb(255,245,170)";
+    //ctxt.fillRect(0,0,1500,1000);
 
-    var pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    window.seed = 0;
+    var simplex = new SimplexNoise(random);
+    var imgdata = ctxt.getImageData(0, 0, canvas.width, canvas.height);
+    var pixels = imgdata.data;
+    var t = (new Date()).getTime() / 2000;
     for (var y = 0; y < canvas.height; y++) {
       for (var x = 0; x < canvas.width; x++) {
-        
+        var b = simplex.noise3D(x / 10, y / 10, t);
+        pixels[(x + y * canvas.width) * 4 + 0] = 255;
+        pixels[(x + y * canvas.width) * 4 + 1] = 245 + (255 - 245) * b;
+        pixels[(x + y * canvas.width) * 4 + 2] = 170 + (255 - 170) * b;
+        pixels[(x + y * canvas.width) * 4 + 3] = 255;
       }
     }
-    ctxt.putImageData(pixels, 0, 0);
+    ctxt.putImageData(imgdata, 0, 0);
 
     self._texture = new THREE.Texture(self._textureCanvas);
     self._texture.needsUpdate = true;
@@ -50,9 +58,6 @@ function Planetoid(deformations) {
     var exactPoint = lookup(pointsLookup, tx, ty);
     if (exactPoint) {
       return exactPoint;
-    }
-    if (tx != 0 && ty != 0) {
-      console.log("Exact generated at " + tx + "," + ty);
     }
     return getVector(tx, ty);
   }
@@ -236,10 +241,12 @@ function Planetoid(deformations) {
   
   var planet = buildGeom();
   var geometry = planet;//   = new THREE.TorusGeometry( 1, 0.42 );
-  var material    = new THREE.MeshNormalMaterial();
-  //var material = new THREE.MeshBasicMaterial({ map: generateTexture()});
-  //var material  = new THREE.MeshBasicMaterial();
-  //material.map   = THREE.ImageUtils.loadTexture("images/misc/galaxy_starfield.png");
+  //var material    = new THREE.MeshNormalMaterial();
+  //var material = new THREE.MeshPhongMaterial({ map: generateTexture()});
+  //var material = new THREE.MeshPhongMaterial({ map: generateTexture()});
+  var material  = new THREE.MeshBasicMaterial();
+  material.map   = THREE.ImageUtils.loadTexture("images/sunmap.jpg");
+  material.map   = this.generateTexture(); //THREE.ImageUtils.loadTexture("images/sunmap.jpg");
   var mesh    = new THREE.Mesh( geometry, material );
 
   this._geom = geometry;
@@ -261,10 +268,15 @@ Planetoid.prototype.remove = function(scene) {
   scene.remove(this._mesh);
 };
 
+Planetoid.prototype.updateTexture = function(scene) {
+  this._material.map = this.generateTexture();
+};
+
 Planetoid.prototype.updateGeom = function(scene) {
   scene.remove(this._mesh);
 
   this._geom = this._buildGeom(); 
+  this._material.map = this.generateTexture();
   this._mesh = new THREE.Mesh( this._geom, this._material );
   scene.add(this._mesh);
 };

@@ -7,7 +7,7 @@ function DebugPanel(container) {
 
   function createPlanetoidSection(sectionParent) {
     var seed = 100;
-    var craters = 500;
+    var craters = 0;
 
     createElement("h3", {
       innerHTML: "<u><center>Planetoid</center></u>",

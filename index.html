@@ -6,6 +6,8 @@
         <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
         
             
+        <script src="https://rawgithub.com/jwagner/simplex-noise.js/master/simplex-noise.js"></script>
+
         <script src="http://threejs.org/build/three.min.js"></script>
         <script src="vendor/three.js/Detector.js"></script>
         <!-- https://github.com/mrdoob/stats.js -->
@@ -182,8 +184,9 @@ function animate() {
 }
 
 function updateMesh() {
-  currPlanetoid.updateGeom(scene);
-  setTimeout(updateMesh, 100);
+  //currPlanetoid.updateGeom(scene);
+  currPlanetoid.updateTexture();
+  setTimeout(updateMesh, 10);
 }
 
 // render the scene
