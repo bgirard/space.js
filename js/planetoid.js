@@ -57,6 +57,12 @@ function Planetoid(deformations) {
     return getVector(tx, ty);
   }
 
+  function avgVector(v1, v2) {
+    return new THREE.Vector3((v1.x + v2.x)/2,
+                             (v1.y + v2.y)/2,
+                             (v1.z + v2.z)/2);
+  }
+
   function interpolate(pointsLookup, getVector, tx, ty, stepX, stepY) {
     // Either we match a point exactly
     var exactPoint = lookup(pointsLookup, tx, ty);
@@ -69,9 +75,7 @@ function Planetoid(deformations) {
     // Or we are a subdivision of the nearby face. Then we average out the nearby face
     var p1 = interpolateExact(pointsLookup, getVector, tx - stepX, ty - stepY);
     var p2 = interpolateExact(pointsLookup, getVector, tx + stepX, ty + stepY);
-    var newP = new THREE.Vector3((p1.x + p2.x)/2,
-                                 (p1.y + p2.y)/2,
-                                 (p1.z + p2.z)/2);
+    var newP = avgVector(p1, p2);
     insertPoint(pointsLookup, tx, ty, newP);
     return newP;
   }
@@ -102,10 +106,36 @@ function Planetoid(deformations) {
     pointsLookup[tx][ty] = point.clone();
   }
 
+  function addAdjustablePoint(adjustablePoints, tx, ty, point) {
+    tx = tx.toPrecision(10);
+    ty = ty.toPrecision(10);
+    if (adjustablePoints[tx] == null) {
+      adjustablePoints[tx] = {};
+    }
+    if (adjustablePoints[tx][ty] == null) {
+      adjustablePoints[tx][ty] = []
+    }
+    adjustablePoints[tx][ty].push(point);
+  }
+
+  function adjustPoint(adjustablePoints, tx, ty, point) {
+    tx = tx.toPrecision(10);
+    ty = ty.toPrecision(10);
+    if (adjustablePoints[tx] == null || adjustablePoints[tx][ty] == null) {
+      return false;
+    }
+    var pointArray = adjustablePoints[tx][ty];
+    for (var i = 0; i < pointArray.length; i++) {
+      pointArray[i].set(point.x, point.y, point.z);
+    }
+    return true;
+  }
+
   function buildGeom() {
     var step = window.baseLOD;
     var planet = new THREE.Geometry();
     var points = {};
+    var adjustablePoints = {};
     for (var x = 0; x < 1; x+=step) {
       for (var y = 0; y < 1; y+=step) {
         function generateFace(faceX, faceY, currStep, deformations) {
@@ -170,14 +200,23 @@ function Planetoid(deformations) {
             return;
           }
 
-          planet.vertices.push(interpolateExact(points, getVector, faceX, faceY));
-          planet.vertices.push(interpolateOnX(points, getVector, faceX + currStep, faceY, currStep));
-          //planet.vertices.push(getVector(faceX + currStep, faceY           ));
-          planet.vertices.push(interpolateOnY(points, getVector, faceX, faceY + currStep, currStep));
-          //planet.vertices.push(getVector(faceX           , faceY + currStep));
-          planet.vertices.push(getVector(faceX + currStep, faceY + currStep));
-          //planet.vertices.push(interpolateOnX(points, getVector, faceX, faceY + currStep, currStep));
-          //planet.vertices.push(interpolateExact(points, getVector, faceX, faceY));
+          var p1 = interpolateExact(points, getVector, faceX, faceY);
+          var p2 = interpolateOnX(points, getVector, faceX + currStep, faceY, currStep);
+          var p3 = interpolateOnY(points, getVector, faceX, faceY + currStep, currStep);
+          var p4 = getVector(faceX + currStep, faceY + currStep);
+
+          adjustPoint(adjustablePoints, faceX, faceY + subStep, avgVector(p1, p3));
+          adjustPoint(adjustablePoints, faceX + subStep, faceY, avgVector(p1, p2));
+
+          planet.vertices.push(p1);
+          planet.vertices.push(p2);
+          planet.vertices.push(p3);
+          planet.vertices.push(p4);
+
+          addAdjustablePoint(adjustablePoints, faceX + currStep, faceY, p2);
+          addAdjustablePoint(adjustablePoints, faceX, faceY + currStep, p3);
+          addAdjustablePoint(adjustablePoints, faceX + currStep, faceY + currStep, p4);
+
           planet.faces.push(new THREE.Face3( start, start+1, start+2 ));
           planet.faceVertexUvs[0].push( [new THREE.Vector2(faceX, faceY), new THREE.Vector2(faceX + currStep, faceY), new THREE.Vector2(faceX, faceY + currStep)] );
           planet.faces.push(new THREE.Face3( start+1, start+3, start+2 ));
