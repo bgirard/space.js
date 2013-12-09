@@ -1,5 +1,6 @@
-window.baseLOD = 0.02;
+window.baseLOD = 0.1;
 window.minLOD = 1.885e-7;
+var PIXELS_PER_TILE = 4;
 
 function Planetoid(deformations) {
 
@@ -19,6 +20,7 @@ function Planetoid(deformations) {
     }
   }
 
+  self._textureToSurfaceMap = [];
   this.generateTexture = function generateTexture(deformations) {
     if (self._textureCanvas == null) {
       self._textureCanvas = document.createElement("canvas");
@@ -26,24 +28,47 @@ function Planetoid(deformations) {
       self._textureCanvas.style.top = "0px";
       self._textureCanvas.width = 1024;
       self._textureCanvas.height = 1024;
+      //document.body.appendChild(self._textureCanvas);
     }
     var canvas = self._textureCanvas;
     var ctxt = canvas.getContext("2d");
-    ctxt.fillStyle = "rgb(255,245,170)";
-    //ctxt.fillRect(0,0,1500,1000);
+    ctxt.fillStyle = "rgb(255,0,255)";
+    ctxt.fillRect(0,0,1000,1000);
 
     window.seed = 0;
     var simplex = new SimplexNoise(random);
     var imgdata = ctxt.getImageData(0, 0, canvas.width, canvas.height);
     var pixels = imgdata.data;
     var t = (new Date()).getTime() / 2000;
-    for (var y = 0; y < canvas.height; y++) {
-      for (var x = 0; x < canvas.width; x++) {
-        var b = simplex.noise3D(x / 10, y / 10, t);
-        pixels[(x + y * canvas.width) * 4 + 0] = 255;
-        pixels[(x + y * canvas.width) * 4 + 1] = 245 + (255 - 245) * b;
-        pixels[(x + y * canvas.width) * 4 + 2] = 170 + (255 - 170) * b;
-        pixels[(x + y * canvas.width) * 4 + 3] = 255;
+    if (self._textureToSurfaceMap.length == 0) {
+      for (var y = 0; y < canvas.height; y++) {
+        for (var x = 0; x < canvas.width; x++) {
+          var b = simplex.noise3D(x / 10, y / 10, t);
+          pixels[(x + y * canvas.width) * 4 + 0] = 255;
+          pixels[(x + y * canvas.width) * 4 + 1] = 245 + (255 - 245) * b;
+          pixels[(x + y * canvas.width) * 4 + 2] = 170 + (255 - 170) * b;
+          pixels[(x + y * canvas.width) * 4 + 3] = 255;
+        }
+      }
+    } else {
+      for (var i = 0; i < self._textureToSurfaceMap.length; i++) {
+        var tileInfo = self._textureToSurfaceMap[i];
+        var startX = Math.round(tileInfo.textureX);
+        var endX = Math.round(tileInfo.textureX + tileInfo.textureS);
+        var startY = Math.round(tileInfo.textureY);
+        var endY = Math.round(tileInfo.textureY + tileInfo.textureS);
+        for (var y = startY; y < endY; y++) {
+          for (var x = startX; x < endX; x++) {
+            if (startX >= canvas.width) continue;
+            var tx = tileInfo.x + (x-startX) / (endX - startX) * tileInfo.s;
+            var ty = tileInfo.y + (y-startY) / (endY - startY) * tileInfo.s;
+            var b = simplex.noise3D(tx * 1024 / 10, ty * 1024 / 10, t);
+            pixels[(x + y * canvas.width) * 4 + 0] = 255;
+            pixels[(x + y * canvas.width) * 4 + 1] = 245 + (255 - 245) * b;
+            pixels[(x + y * canvas.width) * 4 + 2] = 170 + (255 - 170) * b;
+            pixels[(x + y * canvas.width) * 4 + 3] = 255;
+          }
+        }
       }
     }
     ctxt.putImageData(imgdata, 0, 0);
@@ -134,13 +159,22 @@ function Planetoid(deformations) {
     return true;
   }
 
+  function idToTextureCoord(id) {
+    var tileCountPerRow = 1024 / PIXELS_PER_TILE;
+    var row = Math.floor(id / tileCountPerRow);
+    var col = id % tileCountPerRow;
+    return [row, col];
+  }
+
   function buildGeom() {
     var step = window.baseLOD;
     var planet = new THREE.Geometry();
     var points = {};
     var adjustablePoints = {};
-    for (var x = 0; x < 1; x+=step) {
-      for (var y = 0; y < 1; y+=step) {
+    var nextTextureTile = 0;
+    self._textureToSurfaceMap = [];
+    for (var x = 0; x < 1 - 1e-10; x+=step) {
+      for (var y = 0; y < 1 - 1e-10; y+=step) {
         function generateFace(faceX, faceY, currStep, deformations) {
           var start = planet.vertices.length;
           var newDeforms = null;
@@ -194,6 +228,7 @@ function Planetoid(deformations) {
             insertPoint(points, tx, ty, v);
             return v;
           }
+          //if (faceX > 0.5) return;
           var subStep = currStep*0.5;
           if (subdivide(getVector(faceX + subStep, faceY + subStep), currStep)) {
             generateFace(faceX, faceY, subStep, deformations);
@@ -221,16 +256,38 @@ function Planetoid(deformations) {
           addAdjustablePoint(adjustablePoints, faceX + currStep, faceY + currStep, p4);
 
           planet.faces.push(new THREE.Face3( start, start+1, start+2 ));
-          planet.faceVertexUvs[0].push( [new THREE.Vector2(faceX, faceY), new THREE.Vector2(faceX + currStep, faceY), new THREE.Vector2(faceX, faceY + currStep)] );
           planet.faces.push(new THREE.Face3( start+1, start+3, start+2 ));
-          planet.faceVertexUvs[0].push( [new THREE.Vector2(faceX + currStep, faceY), new THREE.Vector2(faceX + currStep, faceY + currStep), new THREE.Vector2(faceX, faceY + currStep)] );
-        }
-        var subStep = step;
-        for (var subX = 0; subX < step; subX+=subStep) {
-          for (var subY = 0; subY < step; subY+=subStep) {
-            generateFace(x + subX, y + subY, subStep, deformations);
+
+          var useTextureTile = true;
+          if (useTextureTile) {
+            var textureTile = nextTextureTile;
+            nextTextureTile++;//(1024 / PIXELS_PER_TILE);
+            var textureMapCoord = idToTextureCoord(textureTile);
+            //textureMapCoord[0] = faceX / currStep;
+            //textureMapCoord[1] = faceY / currStep;
+            self._textureToSurfaceMap.push({
+              x: faceX,
+              y: faceY,
+              s: currStep,
+              textureX: textureMapCoord[0] * PIXELS_PER_TILE,
+              textureY: textureMapCoord[1] * PIXELS_PER_TILE,
+              textureS: PIXELS_PER_TILE,
+            });
+            var textureUVs = 1 / (1024 / (PIXELS_PER_TILE));
+            var textureUVx = textureMapCoord[0] * textureUVs;
+            var textureUVy = 1 - textureMapCoord[1] * textureUVs;
+            dump("Tex: (" + textureUVx + "," + textureUVy + "," + (textureUVx + textureUVs) + "," + (textureUVy - textureUVs) + "): " + faceX + "," + faceY + "\n");
+            dump("Pixel: (" + textureMapCoord[0] * PIXELS_PER_TILE + "," + textureMapCoord[1] * PIXELS_PER_TILE + ")" + "\n");
+            planet.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx, textureUVy), new THREE.Vector2(textureUVx + textureUVs, textureUVy), new THREE.Vector2(textureUVx, textureUVy - textureUVs)] );
+            planet.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx + textureUVs, textureUVy), new THREE.Vector2(textureUVx + textureUVs, textureUVy - textureUVs), new THREE.Vector2(textureUVx, textureUVy - textureUVs)] );
+            //planet.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx, textureUVy), new THREE.Vector2(textureUVx + textureUVs, textureUVy), new THREE.Vector2(textureUVx, textureUVy - textureUVs)] );
+            //planet.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx + textureUVs, textureUVy), new THREE.Vector2(textureUVx + textureUVs, textureUVy - textureUVs), new THREE.Vector2(textureUVx, textureUVy - textureUVs)] );
+          } else {
+            planet.faceVertexUvs[0].push( [new THREE.Vector2(faceX, faceY), new THREE.Vector2(faceX + currStep, faceY), new THREE.Vector2(faceX, faceY + currStep)] );
+            planet.faceVertexUvs[0].push( [new THREE.Vector2(faceX + currStep, faceY), new THREE.Vector2(faceX + currStep, faceY + currStep), new THREE.Vector2(faceX, faceY + currStep)] );
           }
         }
+        generateFace(x, y, step, deformations);
       }
     }
     planet.applyMatrix( new THREE.Matrix4().makeRotationX(-Math.PI/2) );

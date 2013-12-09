@@ -118,7 +118,7 @@ function init(){
   stats = new Stats();
   stats.domElement.style.position    = 'absolute';
   stats.domElement.style.bottom    = '0px';
-  document.body.appendChild( stats.domElement );
+  //document.body.appendChild( stats.domElement );
 
   // create a scene
   scene = new THREE.Scene();
@@ -186,7 +186,7 @@ function animate() {
 function updateMesh() {
   //currPlanetoid.updateGeom(scene);
   currPlanetoid.updateTexture();
-  setTimeout(updateMesh, 10);
+  setTimeout(updateMesh, 5000);
 }
 
 // render the scene
@@ -194,6 +194,8 @@ function render() {
 
   // update camera controls
   cameraControls.update();
+
+  //currPlanetoid.getMesh().rotation.y += 0.01;
 
   // actually render the scene
   renderer.render( scene, camera );
