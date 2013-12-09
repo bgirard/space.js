@@ -1,12 +1,13 @@
 window.baseLOD = 0.1;
 window.minLOD = 1.885e-7;
-var PIXELS_PER_TILE = 4;
+var PIXELS_PER_TILE = 8;
 
 function Planetoid(deformations) {
 
   var self = this;
 
   function subdivide(vector, step) {
+    return false;
     //    x      y
     //  1.5e-7  1.9e-7
     //    1      0.2
@@ -161,6 +162,7 @@ function Planetoid(deformations) {
 
   function idToTextureCoord(id) {
     var tileCountPerRow = 1024 / PIXELS_PER_TILE;
+    tileCountPerRow = 10;
     var row = Math.floor(id / tileCountPerRow);
     var col = id % tileCountPerRow;
     return [row, col];
@@ -260,11 +262,8 @@ function Planetoid(deformations) {
 
           var useTextureTile = true;
           if (useTextureTile) {
-            var textureTile = nextTextureTile;
-            nextTextureTile++;//(1024 / PIXELS_PER_TILE);
+            var textureTile = nextTextureTile++;
             var textureMapCoord = idToTextureCoord(textureTile);
-            //textureMapCoord[0] = faceX / currStep;
-            //textureMapCoord[1] = faceY / currStep;
             self._textureToSurfaceMap.push({
               x: faceX,
               y: faceY,
@@ -273,11 +272,12 @@ function Planetoid(deformations) {
               textureY: textureMapCoord[1] * PIXELS_PER_TILE,
               textureS: PIXELS_PER_TILE,
             });
-            var textureUVs = 1 / (1024 / (PIXELS_PER_TILE));
-            var textureUVx = textureMapCoord[0] * textureUVs;
-            var textureUVy = 1 - textureMapCoord[1] * textureUVs;
-            dump("Tex: (" + textureUVx + "," + textureUVy + "," + (textureUVx + textureUVs) + "," + (textureUVy - textureUVs) + "): " + faceX + "," + faceY + "\n");
-            dump("Pixel: (" + textureMapCoord[0] * PIXELS_PER_TILE + "," + textureMapCoord[1] * PIXELS_PER_TILE + ")" + "\n");
+            // Align to pixel centers
+            var textureUVo = 1 / (1024 / (PIXELS_PER_TILE));
+            var textureUVi = 0.5 / (1024);
+            var textureUVs = 1 / (1024 / (PIXELS_PER_TILE-1));
+            var textureUVx = textureMapCoord[0] * textureUVs + textureUVi;
+            var textureUVy = 1 - textureMapCoord[1] * textureUVs - textureUVi;
             planet.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx, textureUVy), new THREE.Vector2(textureUVx + textureUVs, textureUVy), new THREE.Vector2(textureUVx, textureUVy - textureUVs)] );
             planet.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx + textureUVs, textureUVy), new THREE.Vector2(textureUVx + textureUVs, textureUVy - textureUVs), new THREE.Vector2(textureUVx, textureUVy - textureUVs)] );
             //planet.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx, textureUVy), new THREE.Vector2(textureUVx + textureUVs, textureUVy), new THREE.Vector2(textureUVx, textureUVy - textureUVs)] );
