@@ -1,6 +1,7 @@
 window.baseLOD = 0.1;
 window.minLOD = 1.885e-7;
-var PIXELS_PER_TILE = 8;
+var TEXTURE_SIZE = 256;
+var PIXELS_PER_TILE = 2;
 
 function Planetoid(deformations) {
 
@@ -27,9 +28,9 @@ function Planetoid(deformations) {
       self._textureCanvas = document.createElement("canvas");
       self._textureCanvas.style.position = "absolute";
       self._textureCanvas.style.top = "0px";
-      self._textureCanvas.width = 1024;
-      self._textureCanvas.height = 1024;
-      //document.body.appendChild(self._textureCanvas);
+      self._textureCanvas.width = TEXTURE_SIZE;
+      self._textureCanvas.height = TEXTURE_SIZE;
+      document.body.appendChild(self._textureCanvas);
     }
     var canvas = self._textureCanvas;
     var ctxt = canvas.getContext("2d");
@@ -161,8 +162,7 @@ function Planetoid(deformations) {
   }
 
   function idToTextureCoord(id) {
-    var tileCountPerRow = 1024 / PIXELS_PER_TILE;
-    tileCountPerRow = 10;
+    var tileCountPerRow = TEXTURE_SIZE / PIXELS_PER_TILE;
     var row = Math.floor(id / tileCountPerRow);
     var col = id % tileCountPerRow;
     return [row, col];
@@ -273,9 +273,9 @@ function Planetoid(deformations) {
               textureS: PIXELS_PER_TILE,
             });
             // Align to pixel centers
-            var textureUVo = 1 / (1024 / (PIXELS_PER_TILE));
-            var textureUVi = 0.5 / (1024);
-            var textureUVs = 1 / (1024 / (PIXELS_PER_TILE-1));
+            var textureUVo = 1 / (TEXTURE_SIZE / (PIXELS_PER_TILE));
+            var textureUVi = 0.5 / (TEXTURE_SIZE);
+            var textureUVs = 1 / (TEXTURE_SIZE / (PIXELS_PER_TILE-1));
             var textureUVx = textureMapCoord[0] * textureUVs + textureUVi;
             var textureUVy = 1 - textureMapCoord[1] * textureUVs - textureUVi;
             planet.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx, textureUVy), new THREE.Vector2(textureUVx + textureUVs, textureUVy), new THREE.Vector2(textureUVx, textureUVy - textureUVs)] );
