@@ -1,20 +1,19 @@
-window.baseLOD = 0.1;
+window.baseLOD = 0.04;
 window.minLOD = 1.885e-7;
-var TEXTURE_SIZE = 256;
-var PIXELS_PER_TILE = 16;
+var TEXTURE_SIZE = 512;
+var PIXELS_PER_TILE = 8;
 
 function Planetoid(deformations) {
 
   var self = this;
 
   function subdivide(vector, step) {
-    return false;
     //    x      y
     //  1.5e-7  1.9e-7
     //    1      0.2
     vector.applyMatrix4( new THREE.Matrix4().makeRotationX(-Math.PI/2) );
     var viewVector = camera.position.clone();
-    viewVector.z = 1;
+    //viewVector.z = 1;
     if (window.baseLOD*viewVector.distanceTo(vector)+window.minLOD < step) {
       return true;
     } else {
@@ -31,7 +30,7 @@ function Planetoid(deformations) {
       self._textureCanvas.style.left = "5px";
       self._textureCanvas.width = TEXTURE_SIZE;
       self._textureCanvas.height = TEXTURE_SIZE;
-      document.body.appendChild(self._textureCanvas);
+      //document.body.appendChild(self._textureCanvas);
     }
     var canvas = self._textureCanvas;
     var ctxt = canvas.getContext("2d");
@@ -66,12 +65,21 @@ function Planetoid(deformations) {
             // NOTE: We use 1 pixel less on each side for filtering
             var tx = tileInfo.x + (x-startX-1) / (endX - 2 - startX) * (tileInfo.s);
             var ty = tileInfo.y + (y-startY-1) / (endY - 2 - startY) * (tileInfo.s);
-            var b = simplex.noise3D(tx*10, ty*10, t);
+            var b = simplex.noise3D(tx*1024, ty*1024, t);
             //b = Math.sin(tx*40)/0.5+0.5 + Math.cos(ty*40)/0.5+0.5;
             pixels[(x + y * canvas.width) * 4 + 0] = 255;
             pixels[(x + y * canvas.width) * 4 + 1] = 245 + (255 - 245) * b;
             pixels[(x + y * canvas.width) * 4 + 2] = 170 + (255 - 170) * b;
             pixels[(x + y * canvas.width) * 4 + 3] = 255;
+            var DEBUG_BORDERS = false;
+            if (DEBUG_BORDERS) {
+              if (x == startX || y == startY || x == endX - 1 || y == endY - 1) {
+                pixels[(x + y * canvas.width) * 4 + 0] = 0;
+                pixels[(x + y * canvas.width) * 4 + 1] = 0;
+                pixels[(x + y * canvas.width) * 4 + 2] = 0;
+                pixels[(x + y * canvas.width) * 4 + 3] = 255;
+              }
+            }
           }
         }
       }
@@ -165,8 +173,8 @@ function Planetoid(deformations) {
   }
 
   function idToTextureCoord(id) {
-    id = id*2;
-    var tileCountPerRow = TEXTURE_SIZE / PIXELS_PER_TILE;
+    id = id;
+    var tileCountPerRow = Math.floor(TEXTURE_SIZE / PIXELS_PER_TILE);
     var row = Math.floor(id / tileCountPerRow);
     var col = id % tileCountPerRow;
     return [row, col];
