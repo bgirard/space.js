@@ -63,12 +63,13 @@ function Planetoid(deformations) {
         for (var y = startY; y < endY; y++) {
           for (var x = startX; x < endX; x++) {
             if (startX >= canvas.width) continue;
-            var tx = tileInfo.x + (x-startX) / (endX - startX) * (tileInfo.s);
-            var ty = tileInfo.y + (y-startY) / (endY - startY) * (tileInfo.s);
-            var b = simplex.noise3D(tx * 1024 / 10, ty * 1024 / 10, t);
-            //b = tx/2 + ty/2;
+            // NOTE: We use 1 pixel less on each side for filtering
+            var tx = tileInfo.x + (x-startX-1) / (endX - 2 - startX) * (tileInfo.s);
+            var ty = tileInfo.y + (y-startY-1) / (endY - 2 - startY) * (tileInfo.s);
+            var b = simplex.noise3D(tx*10, ty*10, t);
+            //b = Math.sin(tx*40)/0.5+0.5 + Math.cos(ty*40)/0.5+0.5;
             pixels[(x + y * canvas.width) * 4 + 0] = 255;
-            pixels[(x + y * canvas.width) * 4 + 1] = 255 * b;
+            pixels[(x + y * canvas.width) * 4 + 1] = 245 + (255 - 245) * b;
             pixels[(x + y * canvas.width) * 4 + 2] = 170 + (255 - 170) * b;
             pixels[(x + y * canvas.width) * 4 + 3] = 255;
           }
@@ -286,7 +287,7 @@ function Planetoid(deformations) {
               textureS: PIXELS_PER_TILE,
             });
             // Align to pixel centers
-            var textureUVpixelCenterOffset = 0.5 / (TEXTURE_SIZE);
+            var textureUVpixelCenterOffset = 1 / (TEXTURE_SIZE);
             var textureUVsize = 1 / (TEXTURE_SIZE / (PIXELS_PER_TILE));
             var textureUVx = textureMapCoord[0] * textureUVsize + textureUVpixelCenterOffset;
             var textureUVy = 1 - textureMapCoord[1] * textureUVsize - textureUVpixelCenterOffset;
