@@ -88,7 +88,7 @@ function buildDefaultPlanetoid(options) {
   for (var i = 0; i < craters; i++) {
     deformations.push( deformation.crater(nextRandom(0, 1), nextRandom(0, 1), 0.01, 0.01) );
   }
-  deformations.push( deformation.crater(0.5, 0.5, 0.01, 0.01) );
+  //deformations.push( deformation.crater(0.5, 0.5, 0.01, 0.01) );
 
   var moon = new Planetoid(deformations);
   return moon;
@@ -167,7 +167,6 @@ function init(){
 
   // here you add your objects
   // - you will most likely replace this part by your own
-  setTimeout(updateMesh, 100);
 }
 
 // animation loop
@@ -188,7 +187,6 @@ function animate() {
 function updateMesh() {
   currPlanetoid.updateGeom(scene);
   currPlanetoid.updateTexture();
-  setTimeout(updateMesh, 100);
 }
 
 // render the scene
@@ -196,6 +194,8 @@ function render() {
 
   // update camera controls
   cameraControls.update();
+
+  updateMesh();
 
   //currPlanetoid.getMesh().rotation.x += 0.01;
 

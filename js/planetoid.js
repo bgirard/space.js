@@ -1,7 +1,7 @@
-window.baseLOD = 0.04;
-window.minLOD = 1.885e-7;
+window.baseLOD = 0.10;
+window.minLOD = 1.885e-8;
 var TEXTURE_SIZE = 512;
-var PIXELS_PER_TILE = 8;
+var PIXELS_PER_TILE = 16;
 
 function Planetoid(deformations) {
 
@@ -12,8 +12,10 @@ function Planetoid(deformations) {
     //  1.5e-7  1.9e-7
     //    1      0.2
     vector.applyMatrix4( new THREE.Matrix4().makeRotationX(-Math.PI/2) );
-    var viewVector = camera.position.clone();
-    //viewVector.z = 1;
+    var view = new THREE.Object3D();
+    view.position = camera.position.clone();
+    view.lookAt(0,0,0);
+    var viewVector = view.position;
     if (window.baseLOD*viewVector.distanceTo(vector)+window.minLOD < step) {
       return true;
     } else {
@@ -65,7 +67,7 @@ function Planetoid(deformations) {
             // NOTE: We use 1 pixel less on each side for filtering
             var tx = tileInfo.x + (x-startX-1) / (endX - 2 - startX) * (tileInfo.s);
             var ty = tileInfo.y + (y-startY-1) / (endY - 2 - startY) * (tileInfo.s);
-            var b = simplex.noise3D(tx*1024, ty*1024, t);
+            var b = simplex.noise3D(tx*1024*1024*1024, ty*1024*1024*1024, t);
             //b = Math.sin(tx*40)/0.5+0.5 + Math.cos(ty*40)/0.5+0.5;
             pixels[(x + y * canvas.width) * 4 + 0] = 255;
             pixels[(x + y * canvas.width) * 4 + 1] = 245 + (255 - 245) * b;
@@ -326,13 +328,16 @@ function Planetoid(deformations) {
   var material  = new THREE.MeshBasicMaterial();
   material.map   = THREE.ImageUtils.loadTexture("images/sunmap.jpg");
   material.map   = this.generateTexture(); //THREE.ImageUtils.loadTexture("images/sunmap.jpg");
-  var mesh    = new THREE.Mesh( geometry, material );
+
+  var meshmaterials = [material, new THREE.MeshBasicMaterial( { color: 0x405040, wireframe: true, opacity: 0.8, transparent: true } )];
+  mesh = THREE.SceneUtils.createMultiMaterialObject(geometry, meshmaterials);
   mesh.name = "Unamed planetoid";
 
   this._geom = geometry;
   this._material = material;
   this._mesh = mesh;
   this._buildGeom = buildGeom;
+  this._meshmaterials = meshmaterials;
   return this;
 };
 
@@ -357,6 +362,7 @@ Planetoid.prototype.updateGeom = function(scene) {
 
   this._geom = this._buildGeom(); 
   this._material.map = this.generateTexture();
-  this._mesh = new THREE.Mesh( this._geom, this._material );
+
+  this._mesh = THREE.SceneUtils.createMultiMaterialObject(this._geom, this._meshmaterials);
   scene.add(this._mesh);
 };
