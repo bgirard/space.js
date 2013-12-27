@@ -142,6 +142,21 @@ function DebugPanel(container) {
     });
   }
 
+  function createMouseOverSection(sectionParent) {
+    createElement("h3", {
+      innerHTML: "<u><center>Mouse Over</center></u>",
+      parent: sectionParent,
+    });
+
+    createElement("span", {
+      innerHTML: "Object: ",
+      parent: sectionParent,
+    });
+    self._mouseOverInfo = createElement("span", {
+      parent: sectionParent,
+    });
+  }
+
   this._planetDiv = createElement("div", {parent: self._div});
   createPlanetoidSection(this._planetDiv);
 
@@ -151,7 +166,38 @@ function DebugPanel(container) {
   this._cameraDiv = createElement("div", {parent: self._div});
   createCameraSection(this._cameraDiv);
 
+  this._mouseOverDiv = createElement("div", {parent: self._div});
+  createMouseOverSection(this._mouseOverDiv);
+
+  window.addEventListener('mousemove', function(e) {
+    self.showActiveFaceInfo(e);
+  }, false);
+
+
   return this;
+}
+
+DebugPanel.prototype.showActiveFaceInfo = function(e) {
+  // http://soledadpenades.com/articles/three-js-tutorials/object-picking/
+  var projector = new THREE.Projector();
+  var raycaster = new THREE.Raycaster();
+  var mouseVector = new THREE.Vector3();
+  mouseVector.x = 2 * (e.clientX / document.getElementById("container").offsetWidth) - 1;
+  mouseVector.y = 1 - 2 * ( e.clientY / document.getElementById("container").offsetHeight );
+  mouseVector.z = 1;
+  projector.unprojectVector( mouseVector, camera );
+  raycaster.set( camera.position, mouseVector.sub( camera.position ).normalize() );
+  var intersects = raycaster.intersectObjects( window.scene.children );
+  if (intersects.length >= 1) {
+    var intersect = intersects[0];
+    var obj = intersect.object;
+    this._mouseOverInfo.textContent = obj.name + "[" + obj.id + "]";
+    this._mouseOverInfo.textContent += JSON.stringify(obj.geometry.faceVertexUvs[0][intersect.faceIndex]);
+    if (intersect.face.debugInfo) {
+      this._mouseOverInfo.textContent += JSON.stringify(intersect.face.debugInfo);
+    }
+    console.log(intersect.face);
+  }
 }
 
 DebugPanel.prototype.generate = function(callback) {

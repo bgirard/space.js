@@ -45,6 +45,7 @@ var camera, cameraControls;
 var currPlanetoid = null;
 
 var debugPanel;
+var DEBUG_BUILD = true;
 
 document.body.onkeypress = function(e) {
   if (e.charCode == 93) {
@@ -147,6 +148,7 @@ function init(){
   material.map   = THREE.ImageUtils.loadTexture("images/misc/galaxy_starfield.png");
   material.side  = THREE.BackSide;
   var stars  = new THREE.Mesh(geometry, material);
+  stars.name = "Starfield";
   scene.add(stars);
 
   debugPanel = new DebugPanel(document.getElementById("info"), currPlanetoid);
@@ -186,7 +188,7 @@ function animate() {
 function updateMesh() {
   //currPlanetoid.updateGeom(scene);
   currPlanetoid.updateTexture();
-  setTimeout(updateMesh, 5000);
+  //setTimeout(updateMesh, 5000);
 }
 
 // render the scene
@@ -195,7 +197,7 @@ function render() {
   // update camera controls
   cameraControls.update();
 
-  //currPlanetoid.getMesh().rotation.y += 0.01;
+  //currPlanetoid.getMesh().rotation.x += 0.01;
 
   // actually render the scene
   renderer.render( scene, camera );
