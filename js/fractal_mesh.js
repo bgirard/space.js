@@ -37,7 +37,7 @@ function FractalMesh(getVector, deformations, options) {
   }
 
   var simplex = new SimplexNoise(random);
-  self._getTexturePixel = function(tx, ty, pixels, pos) {
+  self._getTexturePixel = options.getTexturePixel || function(tx, ty, deformations, pixels, pos) {
     var b = simplex.noise3D(tx*1024*1024*1024, ty*1024*1024*1024, 0);
     b = Math.sin(tx*40)/0.5+0.5 + Math.cos(ty*40)/0.5+0.5;
     pixels[pos + 0] = 255;
@@ -374,7 +374,7 @@ FractalMesh.prototype._generateTexture = function() {
         // NOTE: We use 1 pixel less on each side for filtering
         var tx = tileInfo.x + (x-startX-1) / (endX - 2 - startX) * (tileInfo.s);
         var ty = tileInfo.y + (y-startY-1) / (endY - 2 - startY) * (tileInfo.s);
-        self._getTexturePixel(tx, ty, pixels, (x + y * canvas.width) * 4);
+        self._getTexturePixel(tx, ty, this._deformations, pixels, (x + y * canvas.width) * 4);
         var DEBUG_BORDERS = false;
         if (DEBUG_BORDERS) {
           if (x == startX || y == startY || x == endX - 1 || y == endY - 1) {
