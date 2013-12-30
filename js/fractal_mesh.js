@@ -107,8 +107,10 @@ FractalMesh.prototype._checkSubdivide = function() {
       // For now we use the top left to avoid object allocation
       var faceCenter = this._geom.vertices[face.center];
       var distanceToCam = faceCenter.distanceTo(camVector);
+      var angleToCam = faceCenter.angleTo(camVector);
       var partChanged = false;
-      if (distanceToCam < face.subdivideDistance) {
+      if (distanceToCam < face.subdivideDistance &&
+        Math.abs(angleToCam) < Math.abs(face.subdivideAngle)) {
         if (!face.subdivided) {
           this._subdivideFace(part.face1, part.face2);
           partChanged = true;
@@ -260,6 +262,7 @@ FractalMesh.prototype._buildGeom = function() {
     var subdivideFace = face1;
     subdivideFace.center = start+4;
     subdivideFace.subdivideDistance = p2.distanceTo(p3) * SUBDIVIDE_DISTANCE_FACTOR;
+    subdivideFace.subdivideAngle = p5.angleTo(p2)*10;
     subdivideFace.subdivideFractalMesh = function() {
       return new FractalMesh(self._getVector, newDeforms, {
         startX: faceX,
