@@ -24,6 +24,7 @@
         <script src="js/utils.js"></script>
         <script src="js/starfield.js"></script>
         <script src="js/space_ship_view.js"></script>
+        <script src="js/fractal_mesh.js"></script>
 
         <link  href="css/main.css" rel="stylesheet"/>
     </head>
@@ -93,7 +94,7 @@ function buildDefaultPlanetoid(options) {
   }
   //deformations.push( deformation.crater(0.5, 0.5, 0.01, 0.01) );
 
-  var moon = new Planetoid(deformations);
+  var moon = new FractalMesh(null, deformations);
   return moon;
 }
 
@@ -123,7 +124,7 @@ function init(){
   stats = new Stats();
   stats.domElement.style.position    = 'absolute';
   stats.domElement.style.bottom    = '0px';
-  //document.body.appendChild( stats.domElement );
+  document.body.appendChild( stats.domElement );
 
   // create a scene
   scene = new THREE.Scene();
@@ -133,7 +134,7 @@ function init(){
 
   // put a camera in the scene
   camera = new THREE.PerspectiveCamera(25, window.innerWidth / window.innerHeight, 0.000000001, 10 );
-  camera.position.set(0, 0, 1.0001);
+  camera.position.set(0, 0, 10);
   scene.add(camera);
   farCamera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.001, 10000 );
   farScene.add(farCamera);
@@ -203,8 +204,8 @@ function animate(delta) {
 }
 
 function updateMesh() {
-  currPlanetoid.updateGeom(scene);
-  currPlanetoid.updateTexture();
+  //currPlanetoid.updateGeom(scene);
+  //currPlanetoid.updateTexture();
 }
 
 function syncCamera(cam1, cam2) {
@@ -217,7 +218,7 @@ function render() {
 
   //cameraControls.update();
 
-  updateMesh();
+  //updateMesh();
 
   //currPlanetoid.getMesh().rotation.x += 0.01;
 
