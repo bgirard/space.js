@@ -1,5 +1,3 @@
-window.baseLOD = 0.02;
-window.minLOD = 1.885e-8;
 var TEXTURE_SIZE = 512;
 var PIXELS_PER_TILE = 16;
 

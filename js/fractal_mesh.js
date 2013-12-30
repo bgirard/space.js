@@ -1,3 +1,5 @@
+window.baseLOD = 0.01;
+window.minLOD = 1.885e-8;
 var SUBDIVIDE_DISTANCE_FACTOR = 10;
 function FractalMesh(getVector, deformations, options) {
 
@@ -35,6 +37,21 @@ function FractalMesh(getVector, deformations, options) {
   return this;
 };
 
+FractalMesh.prototype._updateBottomRightConstraint = function() {
+  return;
+  var self = this;
+  self._rightConstraint = [];
+  var x = self._parts.length-1;
+  for (var y = 0; y < self._parts[x].length; y++) {
+    if (self._parts[x][y].face1.subdivided) {
+      var submeshConstraint = self._parts[x][y].face1.subFractalMesh._rightConstraint;
+      self._rightConstraint = self._rightConstraint.concat(submeshConstraint);
+    } else {
+      self._rightConstraint.push(self._parts[x][y]);
+    }
+  }
+}
+
 FractalMesh.prototype._getDeformation = function(deformations, tx, ty) {
   var totalDeforms = 0;
   for (var i = 0 ; i < deformations.length; i++) {
@@ -52,24 +69,54 @@ FractalMesh.prototype._getDeformation = function(deformations, tx, ty) {
   return 1+totalDeforms;//*gaussian(ty);
 }
 
+FractalMesh.prototype._updateLeftConstraint = function(leftConstraint) {
+  return;
+  var self = this;
+  this._currLeftConstraint = leftConstraint;
+  var x = self._parts.length-1;
+  for (var y = 0; y < self._parts[x].length; y++) {
+    if (self._parts[x][y].face1.subdivided) {
+      self._parts[x][y].face1.subFractalMesh._updateLeftConstraint(leftConstraint);
+    } else {
+    }
+  }
+}
+
 FractalMesh.prototype._checkSubdivide = function() {
   // Iterate over every other face because each triangle pair is a quad
   var camVector = camera.position.clone();
+  var changed = false;
   //camVector.applyMatrix4( matrix );
-  for (var i = 0; i < this._geom.faces.length; i+=2) {
-    var face = this._geom.faces[i];
-    // For now we use the top left to avoid object allocation
-    var faceCenter = this._geom.vertices[face.center];
-    var distanceToCam = faceCenter.distanceTo(camVector);
-    if (distanceToCam < face.subdivideDistance) {
-      if (!face.subdivided) {
-        this._subdivideFace(face, this._geom.faces[i+1]);
+  for (var x = 0; x < this._parts.length; x++) {
+    for (var y = 0; y < this._parts[x].length; y++) {
+      var part = this._parts[x][y];
+      var face = part.face1;
+      // For now we use the top left to avoid object allocation
+      var faceCenter = this._geom.vertices[face.center];
+      var distanceToCam = faceCenter.distanceTo(camVector);
+      var partChanged = false;
+      if (distanceToCam < face.subdivideDistance) {
+        if (!face.subdivided) {
+          this._subdivideFace(part.face1, part.face2);
+          partChanged = true;
+        }
+        partChanged |= face.subFractalMesh._checkSubdivide();
+      } else if (face.subdivided) {
+        this._mergeFace(part.face1, part.face2);
+        partChanged = true;
       }
-      face.subFractalMesh._checkSubdivide();
-    } else if (face.subdivided) {
-      this._mergeFace(face, this._geom.faces[i+1]);
+      if (partChanged) {
+        changed = true;
+        // If we changed this part we need to update the right and bottom part
+        if (x + 1 < this._parts.length && this._parts[x+1][y].face1.subdivided) {
+          this._parts[x+1][y].face1.subFractalMesh._updateLeftConstraint(this._rightConstraint, this._bottomConstraint);
+        } else if (y + 1 < this._parts[x].length && this._parts[x][y+1].face1.subdivided) {
+          this._parts[x][y+1].face1.subFractalMesh._updateLeftConstraint(this._rightConstraint, this._bottomConstraint);
+        }
+      }
     }
   }
+  return changed;
 }
 
 FractalMesh.prototype._subdivideFace = function(face1, face2) {
@@ -93,6 +140,8 @@ FractalMesh.prototype._subdivideFace = function(face1, face2) {
 
   face1.subFractalMesh = face1.subdivideFractalMesh();
   this._mesh.add(face1.subFractalMesh.getMesh());
+
+  this._updateBottomRightConstraint();
 }
 
 FractalMesh.prototype._mergeFace = function(face1, face2) {
@@ -107,6 +156,8 @@ FractalMesh.prototype._mergeFace = function(face1, face2) {
   this._geom.verticesNeedUpdate = true;
   this._mesh.remove(face1.subFractalMesh.getMesh());
   face1.subFractalMesh = null;
+
+  this._updateBottomRightConstraint();
 }
 
 FractalMesh.prototype._buildMesh = function() {
@@ -123,6 +174,7 @@ FractalMesh.prototype._buildMesh = function() {
   var meshmaterials = [material];
   //meshmaterials.push(new THREE.MeshBasicMaterial( { color: 0x405040, wireframe: true, opacity: 0.8, transparent: true } ));
   mesh = THREE.SceneUtils.createMultiMaterialObject(this._geom, meshmaterials);
+  mesh.matrixAutoUpdate = false;
   mesh.name = "Unamed FractalMesh";
   mesh.ticks = mesh.ticks || [];
   mesh.ticks.push(function() {
@@ -151,9 +203,9 @@ FractalMesh.prototype._buildGeom = function() {
     return [row, col];
   }
 
-  function generateFace(geom, adjustablePoints, faceX, faceY, currStep, deformations) {
+  function generatePart(geom, adjustablePoints, faceX, faceY, currStep, deformations) {
     var start = geom.vertices.length;
-    var newDeforms = null;
+    var newDeforms = [];
     for (var i = 0; i < deformations.length; i++) {
       var bounds = deformations[i].bounds();
       if (bounds[0] > faceX + currStep ||
@@ -194,12 +246,12 @@ FractalMesh.prototype._buildGeom = function() {
     subdivideFace.center = start+4;
     subdivideFace.subdivideDistance = p2.distanceTo(p3) * SUBDIVIDE_DISTANCE_FACTOR;
     subdivideFace.subdivideFractalMesh = function() {
-      return new FractalMesh(self._getVector, self._deformations, {
+      return new FractalMesh(self._getVector, newDeforms, {
         startX: faceX,
         startY: faceY,
         endX: faceX + step,  
         endY: faceY + step,  
-        step: step / 2,
+        step: step / 4,
       });
     }
     if (window.DEBUG_BUILD) {
@@ -235,15 +287,26 @@ FractalMesh.prototype._buildGeom = function() {
       geom.faceVertexUvs[0].push( [new THREE.Vector2(faceX, faceY), new THREE.Vector2(faceX + currStep, faceY), new THREE.Vector2(faceX, faceY + currStep)] );
       geom.faceVertexUvs[0].push( [new THREE.Vector2(faceX + currStep, faceY), new THREE.Vector2(faceX + currStep, faceY + currStep), new THREE.Vector2(faceX, faceY + currStep)] );
     }
+
+    var part = {
+      face1: face1,
+      face2: face2,
+    };
+
+    return part;
   }
   var step = self._step;
   var geom = new THREE.Geometry();
   var adjustablePoints = {};
   self._nextTextureTile = 0;
   self._textureToSurfaceMap = [];
+  self._parts = [];
   for (var x = self._startX; x < self._endX - 1e-10; x+=step) {
+    self._parts.push([]);
+    var currColumn = self._parts[self._parts.length-1];
     for (var y = self._startY; y < self._endY - 1e-10; y+=step) {
-      generateFace(geom, adjustablePoints, x, y, step, self._deformations);
+      var part = generatePart(geom, adjustablePoints, x, y, step, self._deformations);
+      currColumn.push(part);
     }
   }
   geom.applyMatrix( new THREE.Matrix4().makeRotationX(-Math.PI/2) );

@@ -74,14 +74,14 @@ function buildDefaultPlanetoid(options) {
 
   var deformations = [];
 
-  deformations.push( deformation.noise(1000, 0.001) );
+  //deformations.push( deformation.noise(1000, 0.001) );
 
   // Craters
-  var craters = options.craters || 100;
+  var craters = options.craters || 2000;
   for (var i = 0; i < craters; i++) {
-    deformations.push( deformation.crater(nextRandom(0, 1), nextRandom(0, 1), 0.01, 0.01) );
+    deformations.push( deformation.crater(nextRandom(0, 1), nextRandom(0, 1), 0.01 * Math.random(), 0.01 * Math.random()) );
   }
-  deformations.push( deformation.crater(0.5, 0.5, 0.01, 0.01) );
+  deformations.push( deformation.crater(0.5, 0.5, 0.001, 0.001) );
 
   var moon = new FractalMesh(null, deformations);
   return moon;
