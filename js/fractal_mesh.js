@@ -1,11 +1,14 @@
 window.baseLOD = 0.01;
 window.minLOD = 1.885e-8;
 var SUBDIVIDE_DISTANCE_FACTOR = 10;
+var TEXTURE_SIZE = 1024;
+var PIXELS_PER_TILE = 8;
 function FractalMesh(getVector, deformations, options) {
 
   var self = this;
   options = options || {};
   self._options = options;
+  self._isSubFractalMesh = options.isSubFractalMesh || false;
   self._startX = options.startX || 0;
   self._startY = options.startY || 0;
   self._endX = options.endX || 1;
@@ -31,6 +34,16 @@ function FractalMesh(getVector, deformations, options) {
                               circleZ * mult);
     //insertPoint(self._points, tx, ty, v);
     return v;
+  }
+
+  var simplex = new SimplexNoise(random);
+  self._getTexturePixel = function(tx, ty, pixels, pos) {
+    var b = simplex.noise3D(tx*1024*1024*1024, ty*1024*1024*1024, 0);
+    b = Math.sin(tx*40)/0.5+0.5 + Math.cos(ty*40)/0.5+0.5;
+    pixels[pos + 0] = 255;
+    pixels[pos + 1] = 245 + (255 - 245) * b;
+    pixels[pos + 2] = 170 + (255 - 170) * b;
+    pixels[pos + 3] = 255;
   }
 
   this._mesh = self._buildMesh();
@@ -165,11 +178,13 @@ FractalMesh.prototype._buildMesh = function() {
   this._geom = this._buildGeom();
   //var material = new THREE.MeshPhongMaterial({ map: generateTexture()});
   //var material = new THREE.MeshPhongMaterial({ map: generateTexture()});
-  var material  = new THREE.MeshBasicMaterial();
-  //material.map   = THREE.ImageUtils.loadTexture("images/sunmap.jpg");
-  //material.map   = this.generateTexture(); //THREE.ImageUtils.loadTexture("images/sunmap.jpg");
-  //material.map   = this.generateTexture(); //THREE.ImageUtils.loadTexture("images/sunmap.jpg");
-  var material    = new THREE.MeshNormalMaterial();
+  var USE_NORMAL = false;
+  if (USE_NORMAL || self._isSubFractalMesh) {
+    var material    = new THREE.MeshNormalMaterial();
+  } else {
+    var material  = new THREE.MeshPhongMaterial();
+    material.map   = this._generateTexture();
+  }
 
   var meshmaterials = [material];
   //meshmaterials.push(new THREE.MeshBasicMaterial( { color: 0x405040, wireframe: true, opacity: 0.8, transparent: true } ));
@@ -252,6 +267,7 @@ FractalMesh.prototype._buildGeom = function() {
         endX: faceX + step,  
         endY: faceY + step,  
         step: step / 4,
+        isSubFractalMesh: true,
       });
     }
     if (window.DEBUG_BUILD) {
@@ -263,30 +279,24 @@ FractalMesh.prototype._buildGeom = function() {
       face2.debugInfo = debugInfo;
     }
 
-    var useTextureTile = true;
-    if (useTextureTile) {
-      var textureTile = self._nextTextureTile++;
-      var textureMapCoord = idToTextureCoord(textureTile);
-      self._textureToSurfaceMap.push({
-        x: faceX,
-        y: faceY,
-        s: currStep,
-        textureX: textureMapCoord[0] * PIXELS_PER_TILE,
-        textureY: textureMapCoord[1] * PIXELS_PER_TILE,
-        textureS: PIXELS_PER_TILE,
-      });
-      // Align to pixel centers
-      var textureUVpixelCenterOffset = 1 / (TEXTURE_SIZE);
-      var textureUVsize = 1 / (TEXTURE_SIZE / (PIXELS_PER_TILE));
-      var textureUVx = textureMapCoord[0] * textureUVsize + textureUVpixelCenterOffset;
-      var textureUVy = 1 - textureMapCoord[1] * textureUVsize - textureUVpixelCenterOffset;
-      var textureUVlen = textureUVsize - 2*textureUVpixelCenterOffset
-      geom.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx, textureUVy), new THREE.Vector2(textureUVx + textureUVlen, textureUVy), new THREE.Vector2(textureUVx, textureUVy - textureUVlen)] );
-      geom.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx + textureUVlen, textureUVy), new THREE.Vector2(textureUVx + textureUVlen, textureUVy - textureUVlen), new THREE.Vector2(textureUVx, textureUVy - textureUVlen)] );
-    } else {
-      geom.faceVertexUvs[0].push( [new THREE.Vector2(faceX, faceY), new THREE.Vector2(faceX + currStep, faceY), new THREE.Vector2(faceX, faceY + currStep)] );
-      geom.faceVertexUvs[0].push( [new THREE.Vector2(faceX + currStep, faceY), new THREE.Vector2(faceX + currStep, faceY + currStep), new THREE.Vector2(faceX, faceY + currStep)] );
-    }
+    var textureTile = self._nextTextureTile++;
+    var textureMapCoord = idToTextureCoord(textureTile);
+    self._textureToSurfaceMap.push({
+      x: faceX,
+      y: faceY,
+      s: currStep,
+      textureX: textureMapCoord[0] * PIXELS_PER_TILE,
+      textureY: textureMapCoord[1] * PIXELS_PER_TILE,
+      textureS: PIXELS_PER_TILE,
+    });
+    // Align to pixel centers
+    var textureUVpixelCenterOffset = 1 / (TEXTURE_SIZE);
+    var textureUVsize = 1 / (TEXTURE_SIZE / (PIXELS_PER_TILE));
+    var textureUVx = textureMapCoord[0] * textureUVsize + textureUVpixelCenterOffset;
+    var textureUVy = 1 - textureMapCoord[1] * textureUVsize - textureUVpixelCenterOffset;
+    var textureUVlen = textureUVsize - 2*textureUVpixelCenterOffset
+    geom.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx, textureUVy), new THREE.Vector2(textureUVx + textureUVlen, textureUVy), new THREE.Vector2(textureUVx, textureUVy - textureUVlen)] );
+    geom.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx + textureUVlen, textureUVy), new THREE.Vector2(textureUVx + textureUVlen, textureUVy - textureUVlen), new THREE.Vector2(textureUVx, textureUVy - textureUVlen)] );
 
     var part = {
       face1: face1,
@@ -322,7 +332,63 @@ FractalMesh.prototype.add = function(scene) {
   scene.add(this._mesh);
 };
 
-FractalMesh.prototype.updateTexture = function(scene) {
+FractalMesh.prototype._generateTexture = function() {
+  var self = this;
+  if (self._textureCanvas == null) {
+    self._textureCanvas = document.createElement("canvas");
+    self._textureCanvas.style.position = "absolute";
+    self._textureCanvas.style.top = "5px";
+    self._textureCanvas.style.left = "5px";
+    self._textureCanvas.width = TEXTURE_SIZE;
+    self._textureCanvas.height = TEXTURE_SIZE;
+    var SHOW_CANVAS = false;
+    if (SHOW_CANVAS) {
+      self._textureCanvas.style.webkitTransform = "scale(0.5,0.5)";
+      self._textureCanvas.style.webkitTransformOrigin = "0% 0%";
+      self._textureCanvas.style.transformOrigin = "0% 0%";
+      self._textureCanvas.style.transform = "scale(0.5,0.5)";
+      document.body.appendChild(self._textureCanvas);
+    }
+  }
+  var canvas = self._textureCanvas;
+  var ctxt = canvas.getContext("2d");
+  ctxt.fillStyle = "rgb(255,0,255)";
+  ctxt.fillRect(0,0,TEXTURE_SIZE,TEXTURE_SIZE);
+
+  window.seed = 0;
+  var imgdata = ctxt.getImageData(0, 0, canvas.width, canvas.height);
+  var pixels = imgdata.data;
+  var t = (new Date()).getTime() / 2000;
+  for (var i = 0; i < self._textureToSurfaceMap.length; i++) {
+    var tileInfo = self._textureToSurfaceMap[i];
+    var startX = Math.round(tileInfo.textureX);
+    var endX = Math.round(tileInfo.textureX + tileInfo.textureS);
+    var startY = Math.round(tileInfo.textureY);
+    var endY = Math.round(tileInfo.textureY + tileInfo.textureS);
+    for (var y = startY; y < endY; y++) {
+      for (var x = startX; x < endX; x++) {
+        if (startX >= canvas.width) continue;
+        // NOTE: We use 1 pixel less on each side for filtering
+        var tx = tileInfo.x + (x-startX-1) / (endX - 2 - startX) * (tileInfo.s);
+        var ty = tileInfo.y + (y-startY-1) / (endY - 2 - startY) * (tileInfo.s);
+        self._getTexturePixel(tx, ty, pixels, (x + y * canvas.width) * 4);
+        var DEBUG_BORDERS = false;
+        if (DEBUG_BORDERS) {
+          if (x == startX || y == startY || x == endX - 1 || y == endY - 1) {
+            pixels[(x + y * canvas.width) * 4 + 0] = 0;
+            pixels[(x + y * canvas.width) * 4 + 1] = 0;
+            pixels[(x + y * canvas.width) * 4 + 2] = 0;
+            pixels[(x + y * canvas.width) * 4 + 3] = 255;
+          }
+        }
+      }
+    }
+  }
+  ctxt.putImageData(imgdata, 0, 0);
+
+  self._texture = new THREE.Texture(self._textureCanvas);
+  self._texture.needsUpdate = true;
+  return self._texture;
 };
 
 FractalMesh.prototype.updateGeom = function(scene) {

@@ -121,6 +121,13 @@ function init(){
   farScene = new THREE.Scene();
   window.farScene = farScene;
 
+  var dlight = new THREE.DirectionalLight( 0xffffff, 0.1 );
+  var dlight = new THREE.DirectionalLight( 0xffffff, 0.1 );
+  scene.add( new THREE.AmbientLight( 0x888888 ) );
+  dlight.position = new THREE.Vector3(0,0,Math.EARTH_RADIUS);
+  scene.add(dlight);
+  renderer.physicallyBasedShading = true;
+
   // put a camera in the scene
   camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.000001, Math.EARTH_RADIUS * 100 );
   camera.position.set(0, 0, Math.EARTH_RADIUS * 10);
