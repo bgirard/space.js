@@ -22,6 +22,8 @@
         <script src="js/planetoid.js"></script>
         <script src="js/debug_panel.js"></script>
         <script src="js/utils.js"></script>
+        <script src="js/starfield.js"></script>
+        <script src="js/space_ship_view.js"></script>
 
         <link  href="css/main.css" rel="stylesheet"/>
     </head>
@@ -39,8 +41,9 @@
     </div> 
 
     <script type="text/javascript">
+var farScene;
 var stats, scene, renderer;
-var camera, cameraControls;
+var farCamera, camera, cameraControls;
 
 var currPlanetoid = null;
 
@@ -108,6 +111,7 @@ function init(){
           //preserveDrawingBuffer    : true    // to allow screenshot
       });
       renderer.setClearColorHex( 0xBBBBBB, 1 );
+      renderer.autoClear = false;
   } else {
       Detector.addGetWebGLMessage();
       return true;
@@ -124,14 +128,19 @@ function init(){
   // create a scene
   scene = new THREE.Scene();
   window.scene = scene;
+  farScene = new THREE.Scene();
+  window.farScene = farScene;
 
   // put a camera in the scene
-  camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.00001, 100 );
-  camera.position.set(0, 0, 15);
+  camera = new THREE.PerspectiveCamera(25, window.innerWidth / window.innerHeight, 0.000000001, 10 );
+  camera.position.set(0, 0, 1.0001);
   scene.add(camera);
+  farCamera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.001, 10000 );
+  farScene.add(farCamera);
+  //farScene.add(camera);
 
   // create a camera contol
-  cameraControls    = new THREEx.DragPanControls(camera, renderer.domElement)
+  //cameraControls    = new THREEx.DragPanControls(camera, renderer.domElement)
 
   // transparently support window resize
   THREEx.WindowResize.bind(renderer, camera);
@@ -143,13 +152,7 @@ function init(){
     document.getElementById('inlineDoc').innerHTML    += "- <i>f</i> for fullscreen";
   }
 
-  var geometry  = new THREE.SphereGeometry(90, 32, 32);
-  var material  = new THREE.MeshBasicMaterial();
-  material.map   = THREE.ImageUtils.loadTexture("images/misc/galaxy_starfield.png");
-  material.side  = THREE.BackSide;
-  var stars  = new THREE.Mesh(geometry, material);
-  stars.name = "Starfield";
-  scene.add(stars);
+  farScene.add(createStarfield());
 
   debugPanel = new DebugPanel(document.getElementById("info"), currPlanetoid);
   debugPanel.generatedPlanetoidCallback(function (planetoid) {
@@ -165,17 +168,32 @@ function init(){
     currPlanetoid.updateGeom(scene);
   }
 
+  SpaceShipView(camera,{
+  });
+
   // here you add your objects
   // - you will most likely replace this part by your own
 }
 
 // animation loop
-function animate() {
+function animate(delta) {
 
   // loop on request animation loop
   // - it has to be at the begining of the function
   // - see details at http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
   requestAnimationFrame( animate );
+
+  var objects = window.scene.children;
+  for (var i = 0; i < objects.length; i++) {
+    var obj = objects[i];
+    var ticks = obj.ticks;
+    if (obj.ticks) {
+      for (var j = 0; j < ticks.length; j++) {
+        var tick = ticks[j];
+        tick(delta);
+      }
+    }
+  }
 
   // do the render
   render();
@@ -189,17 +207,25 @@ function updateMesh() {
   currPlanetoid.updateTexture();
 }
 
+function syncCamera(cam1, cam2) {
+  cam2.position = cam2.position.clone();
+  cam2.rotation = cam2.rotation.clone();
+}
+
 // render the scene
 function render() {
 
-  // update camera controls
-  cameraControls.update();
+  //cameraControls.update();
 
   updateMesh();
 
   //currPlanetoid.getMesh().rotation.x += 0.01;
 
   // actually render the scene
+  syncCamera(camera, farCamera);
+  renderer.clear(true, true, true);
+  renderer.render( farScene, farCamera );
+  renderer.clear(false, true, false); // clear only the depth
   renderer.render( scene, camera );
 }
     </script>

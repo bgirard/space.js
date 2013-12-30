@@ -322,14 +322,16 @@ function Planetoid(deformations) {
   
   var planet = buildGeom();
   var geometry = planet;//   = new THREE.TorusGeometry( 1, 0.42 );
-  //var material    = new THREE.MeshNormalMaterial();
   //var material = new THREE.MeshPhongMaterial({ map: generateTexture()});
   //var material = new THREE.MeshPhongMaterial({ map: generateTexture()});
   var material  = new THREE.MeshBasicMaterial();
-  material.map   = THREE.ImageUtils.loadTexture("images/sunmap.jpg");
-  material.map   = this.generateTexture(); //THREE.ImageUtils.loadTexture("images/sunmap.jpg");
+  //material.map   = THREE.ImageUtils.loadTexture("images/sunmap.jpg");
+  //material.map   = this.generateTexture(); //THREE.ImageUtils.loadTexture("images/sunmap.jpg");
+  //material.map   = this.generateTexture(); //THREE.ImageUtils.loadTexture("images/sunmap.jpg");
+  var material    = new THREE.MeshNormalMaterial();
 
-  var meshmaterials = [material, new THREE.MeshBasicMaterial( { color: 0x405040, wireframe: true, opacity: 0.8, transparent: true } )];
+  var meshmaterials = [material];
+  meshmaterials.push(new THREE.MeshBasicMaterial( { color: 0x405040, wireframe: true, opacity: 0.8, transparent: true } ));
   mesh = THREE.SceneUtils.createMultiMaterialObject(geometry, meshmaterials);
   mesh.name = "Unamed planetoid";
 
@@ -354,6 +356,7 @@ Planetoid.prototype.remove = function(scene) {
 };
 
 Planetoid.prototype.updateTexture = function(scene) {
+  return;
   this._material.map = this.generateTexture();
 };
 
@@ -361,7 +364,7 @@ Planetoid.prototype.updateGeom = function(scene) {
   scene.remove(this._mesh);
 
   this._geom = this._buildGeom(); 
-  this._material.map = this.generateTexture();
+  this.updateTexture();
 
   this._mesh = THREE.SceneUtils.createMultiMaterialObject(this._geom, this._meshmaterials);
   scene.add(this._mesh);
