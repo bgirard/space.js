@@ -1,3 +1,4 @@
+var SUBDIVIDE_DISTANCE_FACTOR = 10;
 function FractalMesh(getVector, deformations, options) {
 
   var self = this;
@@ -8,10 +9,10 @@ function FractalMesh(getVector, deformations, options) {
   self._endX = options.endX || 1;
   self._endY = options.endY || 1;
   self._step = options.step || window.baseLOD;
-  self._deformations = deformations;
+  self._deformations = deformations || [];
 
   // Default to sphere body
-  self._getVector = getVector || function getVector(tx, ty) {
+  self._getVector = options.getVector || function getVector(tx, ty, deformation) {
     // First build the vertice for (tx, ty)
     var circleX = Math.sin(tx*2*Math.PI)*Math.sin(ty*Math.PI);
     var circleY = Math.cos(tx*2*Math.PI)*Math.sin(ty*Math.PI);
@@ -21,7 +22,7 @@ function FractalMesh(getVector, deformations, options) {
       circleZ = -circleZ;
     }
     // Multiply the vector by a deformation
-    var mult = 1;//getDeformation(deformations, tx, ty);
+    var mult = Math.EARTH_RADIUS * deformation;
     // And we're done
     var v = new THREE.Vector3(circleX * mult,
                               circleY * mult,
@@ -29,10 +30,27 @@ function FractalMesh(getVector, deformations, options) {
     //insertPoint(self._points, tx, ty, v);
     return v;
   }
-  
+
   this._mesh = self._buildMesh();
   return this;
 };
+
+FractalMesh.prototype._getDeformation = function(deformations, tx, ty) {
+  var totalDeforms = 0;
+  for (var i = 0 ; i < deformations.length; i++) {
+    var f = deformations[i].func;
+    // Sample at x-1,x,x+1 to avoid seems between tx=1 and tx=0
+    totalDeforms += f(tx, ty);
+    if (tx < 0.2) {
+      totalDeforms += f(tx + 1, ty);
+    }
+    if (tx > 0.8) {
+      totalDeforms += f(tx - 1, ty);
+    }
+  }
+  // Apply gaussian at the pools to wrap neatly there
+  return 1+totalDeforms;//*gaussian(ty);
+}
 
 FractalMesh.prototype._checkSubdivide = function() {
   // Iterate over every other face because each triangle pair is a quad
@@ -47,6 +65,7 @@ FractalMesh.prototype._checkSubdivide = function() {
       if (!face.subdivided) {
         this._subdivideFace(face, this._geom.faces[i+1]);
       }
+      face.subFractalMesh._checkSubdivide();
     } else if (face.subdivided) {
       this._mergeFace(face, this._geom.faces[i+1]);
     }
@@ -102,7 +121,7 @@ FractalMesh.prototype._buildMesh = function() {
   var material    = new THREE.MeshNormalMaterial();
 
   var meshmaterials = [material];
-  meshmaterials.push(new THREE.MeshBasicMaterial( { color: 0x405040, wireframe: true, opacity: 0.8, transparent: true } ));
+  //meshmaterials.push(new THREE.MeshBasicMaterial( { color: 0x405040, wireframe: true, opacity: 0.8, transparent: true } ));
   mesh = THREE.SceneUtils.createMultiMaterialObject(this._geom, meshmaterials);
   mesh.name = "Unamed FractalMesh";
   mesh.ticks = mesh.ticks || [];
@@ -151,31 +170,20 @@ FractalMesh.prototype._buildGeom = function() {
     if (newDeforms) {
       deformations = newDeforms;
     }
-    function getDeformation(deformations, tx, ty) {
-      var totalDeforms = 0;
-      for (var i = 0 ; i < deformations.length; i++) {
-        var f = deformations[i].func;
-        // Sample at x-1,x,x+1 to avoid seems between tx=1 and tx=0
-        totalDeforms += f(tx, ty);
-        if (tx < 0.2) {
-          totalDeforms += f(tx + 1, ty);
-        }
-        if (tx > 0.8) {
-          totalDeforms += f(tx - 1, ty);
-        }
-      }
-      // Apply gaussian at the pools to wrap neatly there
-      return 1+totalDeforms;//*gaussian(ty);
-    }
-    var p1 = self._getVector(faceX, faceY);
-    var p2 = self._getVector(faceX + currStep, faceY);
-    var p3 = self._getVector(faceX, faceY + currStep);
-    var p4 = self._getVector(faceX + currStep, faceY + currStep);
+    var p1 = self._getVector(faceX, faceY, self._getDeformation(self._deformations, faceX, faceY));
+    var p2 = self._getVector(faceX + currStep, faceY, self._getDeformation(self._deformations, faceX + currStep, faceY));
+    var p3 = self._getVector(faceX, faceY + currStep, self._getDeformation(self._deformations, faceX, faceY + currStep));
+    var p4 = self._getVector(faceX + currStep, faceY + currStep, self._getDeformation(self._deformations, faceX + currStep, faceY + currStep));
+    var p5 = avgVector(p2, p3);
 
     geom.vertices.push(p1);
     geom.vertices.push(p2);
     geom.vertices.push(p3);
     geom.vertices.push(p4);
+    // This point isn't in the 3D mesh but is used for subidividing.
+    // This point will be modified along side the other verticles
+    // when applyMatrix is called.
+    geom.vertices.push(p5);
 
     var face1 = new THREE.Face3( start, start+1, start+2 );
     var face2 = new THREE.Face3( start+1, start+3, start+2 );
@@ -183,8 +191,8 @@ FractalMesh.prototype._buildGeom = function() {
     geom.faces.push(face2);
 
     var subdivideFace = face1;
-    subdivideFace.center = face1.a;
-    subdivideFace.subdivideDistance = p2.distanceTo(p3) * 2;
+    subdivideFace.center = start+4;
+    subdivideFace.subdivideDistance = p2.distanceTo(p3) * SUBDIVIDE_DISTANCE_FACTOR;
     subdivideFace.subdivideFractalMesh = function() {
       return new FractalMesh(self._getVector, self._deformations, {
         startX: faceX,
@@ -240,7 +248,6 @@ FractalMesh.prototype._buildGeom = function() {
   }
   geom.applyMatrix( new THREE.Matrix4().makeRotationX(-Math.PI/2) );
   geom.computeFaceNormals();
-  document.title = geom.vertices.length + " Zoom: " + toMetersStr(camera.position.z-1);
   return geom;
 }
 

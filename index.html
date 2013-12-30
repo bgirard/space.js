@@ -51,17 +51,6 @@ var currPlanetoid = null;
 var debugPanel;
 var DEBUG_BUILD = true;
 
-document.body.onkeypress = function(e) {
-  if (e.charCode == 93) {
-    camera.position.z = (camera.position.z-1)/2 + 1;
-  } else if (e.charCode == 91) {  
-    camera.position.z = (camera.position.z-1)*2 + 1;
-  }
-  if (camera.position.z > 15) {
-    camera.position.z = 15;
-  }
-}
-
 // graph e^(-((x-0.5)*10)^2)) from 0 to 1
 function gaussian(x, center) {
   if (center == null) {
@@ -85,14 +74,14 @@ function buildDefaultPlanetoid(options) {
 
   var deformations = [];
 
-  //deformations.push( deformation.noise(1000, 0.001) );
+  deformations.push( deformation.noise(1000, 0.001) );
 
   // Craters
-  var craters = options.craters || 0;
+  var craters = options.craters || 100;
   for (var i = 0; i < craters; i++) {
     deformations.push( deformation.crater(nextRandom(0, 1), nextRandom(0, 1), 0.01, 0.01) );
   }
-  //deformations.push( deformation.crater(0.5, 0.5, 0.01, 0.01) );
+  deformations.push( deformation.crater(0.5, 0.5, 0.01, 0.01) );
 
   var moon = new FractalMesh(null, deformations);
   return moon;
@@ -133,10 +122,10 @@ function init(){
   window.farScene = farScene;
 
   // put a camera in the scene
-  camera = new THREE.PerspectiveCamera(25, window.innerWidth / window.innerHeight, 0.000000001, 10 );
-  camera.position.set(0, 0, 10);
+  camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.000001, Math.EARTH_RADIUS * 100 );
+  camera.position.set(0, 0, Math.EARTH_RADIUS * 10);
   scene.add(camera);
-  farCamera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.001, 10000 );
+  farCamera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1000, 1000*1000 );
   farScene.add(farCamera);
   //farScene.add(camera);
 
@@ -228,6 +217,7 @@ function render() {
   renderer.render( farScene, farCamera );
   renderer.clear(false, true, false); // clear only the depth
   renderer.render( scene, camera );
+  document.title = "Zoom: " + toMetersStr(camera.position.z-Math.EARTH_RADIUS);
 }
     </script>
 </body>

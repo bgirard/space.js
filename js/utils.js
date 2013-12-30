@@ -16,13 +16,16 @@ function createElement(name, props) {
   return el; 
 }
 
-function toMetersStr(earthRadius) {
-  var val = earthRadius/1.5e-7;
-  if (val < 1000) {
-    return (val).toFixed(0) + "m";
+function toMetersStr(meters) {
+  var val = meters;
+  if (val < 1) {
+    return (val*100).toFixed(1) + "cm";
+  } else if (val < 1000) {
+    return (val).toFixed(1) + "m";
   } else {
-    return (val/1000).toFixed(0) + "km";
+    return (val/1000).toFixed(1) + "km";
   }
 }
 
+Math.EARTH_RADIUS = 6371;
 

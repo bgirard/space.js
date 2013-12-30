@@ -3,6 +3,8 @@ function SpaceShipView(camera, options) {
   camera.ticks = camera.ticks || [];
   camera.vel = 0.003;
   function getMaxVel() {
+    return (camera.position.z-Math.EARTH_RADIUS)/50;
+    return Math.min((camera.position.z-1)/50, 0.01);
     return 0.03;//Math.min((camera.position.z-1)/50, 0.01);
   }
   camera.ticks.push(function move_ship() {
