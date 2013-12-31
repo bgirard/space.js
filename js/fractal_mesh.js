@@ -1,10 +1,10 @@
 window.baseLOD = 0.04;
 window.minLOD = 1.885e-8;
 var SUBDIVIDE_DISTANCE_FACTOR = 10;
-var SUBDIVIDE_FACTOR = 2;
-var SUBDIVIDE_ANGLE_FACTOR = 10;
-var TEXTURE_SIZE = 1024;
-var PIXELS_PER_TILE = 32;
+var SUBDIVIDE_FACTOR = 8;
+var SUBDIVIDE_ANGLE_FACTOR = 8;
+var TEXTURE_SIZE = 512;
+var PIXELS_PER_TILE = 16;
 function FractalMesh(getVector, deformations, options) {
 
   var self = this;
@@ -173,7 +173,7 @@ FractalMesh.prototype._buildMesh = function() {
   //var material = new THREE.MeshPhongMaterial({ map: generateTexture()});
   //var material = new THREE.MeshPhongMaterial({ map: generateTexture()});
   var USE_NORMAL = false;
-  if (USE_NORMAL || self._isSubFractalMesh) {
+  if (USE_NORMAL) {
     var material    = new THREE.MeshNormalMaterial();
   } else {
     var material  = new THREE.MeshPhongMaterial();
@@ -197,7 +197,17 @@ FractalMesh.prototype._buildMesh = function() {
 FractalMesh.prototype._buildGeom = function() {
   var self = this;
   self._points = {};
+  var step = self._step;
 
+  self._partsCount = 0;
+  for (var x = self._startX; x < self._endX - 1e-10; x+=step) {
+    for (var y = self._startY; y < self._endY - 1e-10; y+=step) {
+      self._partsCount++;
+    }
+  }
+
+  self._textureWidth = idToTextureCoord(self._partsCount)[0] * PIXELS_PER_TILE + PIXELS_PER_TILE;
+  self._textureHeight = TEXTURE_SIZE;
   function avgVector(v1, v2) {
     return new THREE.Vector3((v1.x + v2.x)/2,
                              (v1.y + v2.y)/2,
@@ -205,7 +215,6 @@ FractalMesh.prototype._buildGeom = function() {
   }
 
   function idToTextureCoord(id) {
-    id = id;
     var tileCountPerRow = Math.floor(TEXTURE_SIZE / PIXELS_PER_TILE);
     var row = Math.floor(id / tileCountPerRow);
     var col = id % tileCountPerRow;
@@ -287,13 +296,16 @@ FractalMesh.prototype._buildGeom = function() {
     });
     // Align to pixel centers
     var textureUVpixelCenterOffset = 1 / (TEXTURE_SIZE);
-    var textureUVpixelCenterOffset = 0 / (TEXTURE_SIZE);
-    var textureUVsize = 1 / (TEXTURE_SIZE / (PIXELS_PER_TILE));
-    var textureUVx = textureMapCoord[0] * textureUVsize + textureUVpixelCenterOffset;
-    var textureUVy = 1 - textureMapCoord[1] * textureUVsize - textureUVpixelCenterOffset;
-    var textureUVlen = textureUVsize - 2*textureUVpixelCenterOffset
-    geom.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx, textureUVy), new THREE.Vector2(textureUVx + textureUVlen, textureUVy), new THREE.Vector2(textureUVx, textureUVy - textureUVlen)] );
-    geom.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx + textureUVlen, textureUVy), new THREE.Vector2(textureUVx + textureUVlen, textureUVy - textureUVlen), new THREE.Vector2(textureUVx, textureUVy - textureUVlen)] );
+    var textureUVpixelCenterOffsetW = 0 / (TEXTURE_SIZE);
+    var textureUVpixelCenterOffsetH = 0 / (TEXTURE_SIZE);
+    var textureUVsizeW = 1 / (self._textureWidth / (PIXELS_PER_TILE));
+    var textureUVsizeH = 1 / (self._textureHeight / (PIXELS_PER_TILE));
+    var textureUVx = textureMapCoord[0] * textureUVsizeW + textureUVpixelCenterOffsetW;
+    var textureUVy = 1 - textureMapCoord[1] * textureUVsizeH - textureUVpixelCenterOffsetH;
+    var textureUVlenW = textureUVsizeW - 2*textureUVpixelCenterOffsetW;
+    var textureUVlenH = textureUVsizeH - 2*textureUVpixelCenterOffsetH;
+    geom.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx, textureUVy), new THREE.Vector2(textureUVx + textureUVlenW, textureUVy), new THREE.Vector2(textureUVx, textureUVy - textureUVlenH)] );
+    geom.faceVertexUvs[0].push( [new THREE.Vector2(textureUVx + textureUVlenW, textureUVy), new THREE.Vector2(textureUVx + textureUVlenW, textureUVy - textureUVlenH), new THREE.Vector2(textureUVx, textureUVy - textureUVlenH)] );
 
     var part = {
       face1: face1,
@@ -302,7 +314,6 @@ FractalMesh.prototype._buildGeom = function() {
 
     return part;
   }
-  var step = self._step;
   var geom = new THREE.Geometry();
   var adjustablePoints = {};
   self._nextTextureTile = 0;
@@ -336,19 +347,19 @@ FractalMesh.prototype._generateTexture = function() {
     self._textureCanvas.style.position = "absolute";
     self._textureCanvas.style.top = "5px";
     self._textureCanvas.style.left = "5px";
-    self._textureCanvas.width = TEXTURE_SIZE;
-    self._textureCanvas.height = TEXTURE_SIZE;
-    var SHOW_CANVAS = true;
+    self._textureCanvas.width = self._textureWidth;
+    self._textureCanvas.height = self._textureHeight;
+    var SHOW_CANVAS = false;
     if (SHOW_CANVAS) {
-      self._textureCanvas.style.width = TEXTURE_SIZE/2 +"px";
-      self._textureCanvas.style.height = TEXTURE_SIZE/2 + "px";
+      self._textureCanvas.style.width = self._textureWidth/2 +"px";
+      self._textureCanvas.style.height = self._textureHeight/2 + "px";
       document.body.appendChild(self._textureCanvas);
     }
   }
   var canvas = self._textureCanvas;
   var ctxt = canvas.getContext("2d");
-  ctxt.fillStyle = "rgba(0,0,0,0)";
-  ctxt.fillRect(0,0,TEXTURE_SIZE,TEXTURE_SIZE);
+  ctxt.fillStyle = this._color;
+  ctxt.fillRect(0,0,self._textureWidth,self._textureHeight);
   // If we draw something without a color lets draw in pink
 
   for (var i = 0; i < self._textureToSurfaceMap.length; i++) {
@@ -366,7 +377,7 @@ FractalMesh.prototype._generateTexture = function() {
     ctxt.fillStyle = this._color;
     if (tileInfo.x == 0.6 && tileInfo.y == 0.6) {
     }
-    ctxt.fillRect(0,0,TEXTURE_SIZE,TEXTURE_SIZE);
+    ctxt.fillRect(0,0,self._textureWidth,self._textureHeight);
 
     ctxt.translate(startX, startY);
     ctxt.scale(lenX / tileInfo.s, lenY / tileInfo.s);
