@@ -3,7 +3,7 @@ var PIXELS_PER_TILE = 16;
 
 function Planetoid(deformations) {
   this._fractalMesh = new FractalMesh(null, deformations, {
-    getTexturePixel: function(tx, ty, deformations, pixels, pos) {
+    getTexturePixel: function(tx, ty, deformations, canvas) {
       pixels[pos + 0] = 140;
       pixels[pos + 1] = 140;
       pixels[pos + 2] = 140;

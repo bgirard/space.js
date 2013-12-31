@@ -70,18 +70,18 @@ function nextRandom(a, b) {
 
 function buildDefaultPlanetoid(options) {
   options = options || {};
-  window.seed = options.seed || 100;
+  window.seed = options.seed || 1100;
 
   var deformations = [];
 
   //deformations.push( deformation.noise(1000, 0.001) );
 
   // Craters
-  var craters = options.craters || 2000;
+  var craters = options.craters || 100;
   for (var i = 0; i < craters; i++) {
     deformations.push( deformation.crater(nextRandom(0, 1), nextRandom(0, 1), 0.01 * Math.random(), 0.01 * Math.random()) );
   }
-  deformations.push( deformation.crater(0.5, 0.5, 0.001, 0.001) );
+  deformations.push( deformation.crater(0.5, 0.5, 0.01, 0.01) );
 
   var moon = new Planetoid(deformations);
   return moon;
@@ -100,7 +100,7 @@ function init(){
           antialias        : true,    // to get smoother output
           //preserveDrawingBuffer    : true    // to allow screenshot
       });
-      renderer.setClearColorHex( 0xBBBBBB, 1 );
+      renderer.setClearColorHex( 0x000000, 1 );
       renderer.autoClear = false;
   } else {
       Detector.addGetWebGLMessage();

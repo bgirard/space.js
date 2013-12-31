@@ -1,8 +1,10 @@
-window.baseLOD = 0.01;
+window.baseLOD = 0.04;
 window.minLOD = 1.885e-8;
 var SUBDIVIDE_DISTANCE_FACTOR = 10;
+var SUBDIVIDE_FACTOR = 2;
+var SUBDIVIDE_ANGLE_FACTOR = 10;
 var TEXTURE_SIZE = 1024;
-var PIXELS_PER_TILE = 8;
+var PIXELS_PER_TILE = 32;
 function FractalMesh(getVector, deformations, options) {
 
   var self = this;
@@ -14,6 +16,7 @@ function FractalMesh(getVector, deformations, options) {
   self._endX = options.endX || 1;
   self._endY = options.endY || 1;
   self._step = options.step || window.baseLOD;
+  self._color = options.color || "rgb(180,180,180)";
   self._deformations = deformations || [];
 
   // Default to sphere body
@@ -34,16 +37,6 @@ function FractalMesh(getVector, deformations, options) {
                               circleZ * mult);
     //insertPoint(self._points, tx, ty, v);
     return v;
-  }
-
-  var simplex = new SimplexNoise(random);
-  self._getTexturePixel = options.getTexturePixel || function(tx, ty, deformations, pixels, pos) {
-    var b = simplex.noise3D(tx*1024*1024*1024, ty*1024*1024*1024, 0);
-    b = Math.sin(tx*40)/0.5+0.5 + Math.cos(ty*40)/0.5+0.5;
-    pixels[pos + 0] = 255;
-    pixels[pos + 1] = 245 + (255 - 245) * b;
-    pixels[pos + 2] = 170 + (255 - 170) * b;
-    pixels[pos + 3] = 255;
   }
 
   this._mesh = self._buildMesh();
@@ -68,14 +61,13 @@ FractalMesh.prototype._updateBottomRightConstraint = function() {
 FractalMesh.prototype._getDeformation = function(deformations, tx, ty) {
   var totalDeforms = 0;
   for (var i = 0 ; i < deformations.length; i++) {
-    var f = deformations[i].func;
     // Sample at x-1,x,x+1 to avoid seems between tx=1 and tx=0
-    totalDeforms += f(tx, ty);
+    totalDeforms += deformations[i].func(tx, ty);
     if (tx < 0.2) {
-      totalDeforms += f(tx + 1, ty);
+      totalDeforms += deformations[i].func(tx + 1, ty);
     }
     if (tx > 0.8) {
-      totalDeforms += f(tx - 1, ty);
+      totalDeforms += deformations[i].func(tx - 1, ty);
     }
   }
   // Apply gaussian at the pools to wrap neatly there
@@ -262,15 +254,16 @@ FractalMesh.prototype._buildGeom = function() {
     var subdivideFace = face1;
     subdivideFace.center = start+4;
     subdivideFace.subdivideDistance = p2.distanceTo(p3) * SUBDIVIDE_DISTANCE_FACTOR;
-    subdivideFace.subdivideAngle = p5.angleTo(p2)*10;
+    subdivideFace.subdivideAngle = p5.angleTo(p2) * SUBDIVIDE_ANGLE_FACTOR;
     subdivideFace.subdivideFractalMesh = function() {
       return new FractalMesh(self._getVector, newDeforms, {
         startX: faceX,
         startY: faceY,
         endX: faceX + step,  
         endY: faceY + step,  
-        step: step / 4,
+        step: step / SUBDIVIDE_FACTOR,
         isSubFractalMesh: true,
+        color: self._color,
       });
     }
     if (window.DEBUG_BUILD) {
@@ -294,6 +287,7 @@ FractalMesh.prototype._buildGeom = function() {
     });
     // Align to pixel centers
     var textureUVpixelCenterOffset = 1 / (TEXTURE_SIZE);
+    var textureUVpixelCenterOffset = 0 / (TEXTURE_SIZE);
     var textureUVsize = 1 / (TEXTURE_SIZE / (PIXELS_PER_TILE));
     var textureUVx = textureMapCoord[0] * textureUVsize + textureUVpixelCenterOffset;
     var textureUVy = 1 - textureMapCoord[1] * textureUVsize - textureUVpixelCenterOffset;
@@ -344,53 +338,64 @@ FractalMesh.prototype._generateTexture = function() {
     self._textureCanvas.style.left = "5px";
     self._textureCanvas.width = TEXTURE_SIZE;
     self._textureCanvas.height = TEXTURE_SIZE;
-    var SHOW_CANVAS = false;
+    var SHOW_CANVAS = true;
     if (SHOW_CANVAS) {
-      self._textureCanvas.style.webkitTransform = "scale(0.5,0.5)";
-      self._textureCanvas.style.webkitTransformOrigin = "0% 0%";
-      self._textureCanvas.style.transformOrigin = "0% 0%";
-      self._textureCanvas.style.transform = "scale(0.5,0.5)";
+      self._textureCanvas.style.width = TEXTURE_SIZE/2 +"px";
+      self._textureCanvas.style.height = TEXTURE_SIZE/2 + "px";
       document.body.appendChild(self._textureCanvas);
     }
   }
   var canvas = self._textureCanvas;
   var ctxt = canvas.getContext("2d");
-  ctxt.fillStyle = "rgb(255,0,255)";
+  ctxt.fillStyle = "rgba(0,0,0,0)";
   ctxt.fillRect(0,0,TEXTURE_SIZE,TEXTURE_SIZE);
+  // If we draw something without a color lets draw in pink
 
-  window.seed = 0;
-  var imgdata = ctxt.getImageData(0, 0, canvas.width, canvas.height);
-  var pixels = imgdata.data;
-  var t = (new Date()).getTime() / 2000;
   for (var i = 0; i < self._textureToSurfaceMap.length; i++) {
     var tileInfo = self._textureToSurfaceMap[i];
     var startX = Math.round(tileInfo.textureX);
-    var endX = Math.round(tileInfo.textureX + tileInfo.textureS);
+    var lenX = Math.round(tileInfo.textureS);
     var startY = Math.round(tileInfo.textureY);
-    var endY = Math.round(tileInfo.textureY + tileInfo.textureS);
-    for (var y = startY; y < endY; y++) {
-      for (var x = startX; x < endX; x++) {
-        if (startX >= canvas.width) continue;
-        // NOTE: We use 1 pixel less on each side for filtering
-        var tx = tileInfo.x + (x-startX-1) / (endX - 2 - startX) * (tileInfo.s);
-        var ty = tileInfo.y + (y-startY-1) / (endY - 2 - startY) * (tileInfo.s);
-        self._getTexturePixel(tx, ty, this._deformations, pixels, (x + y * canvas.width) * 4);
-        var DEBUG_BORDERS = false;
-        if (DEBUG_BORDERS) {
-          if (x == startX || y == startY || x == endX - 1 || y == endY - 1) {
-            pixels[(x + y * canvas.width) * 4 + 0] = 0;
-            pixels[(x + y * canvas.width) * 4 + 1] = 0;
-            pixels[(x + y * canvas.width) * 4 + 2] = 0;
-            pixels[(x + y * canvas.width) * 4 + 3] = 255;
-          }
-        }
+    var lenY = Math.round(tileInfo.textureS);
+
+    // Build tile clip
+    ctxt.save();
+    ctxt.beginPath();
+    ctxt.rect(startX, startY, lenX, lenY);
+    ctxt.clip();
+    ctxt.fillStyle = this._color;
+    if (tileInfo.x == 0.6 && tileInfo.y == 0.6) {
+    }
+    ctxt.fillRect(0,0,TEXTURE_SIZE,TEXTURE_SIZE);
+
+    ctxt.translate(startX, startY);
+    ctxt.scale(lenX / tileInfo.s, lenY / tileInfo.s);
+    ctxt.translate(-tileInfo.x, -tileInfo.y);
+    ctxt.fillStyle = "rgb(255,0,255)";
+    if (tileInfo.x == 0.6 && tileInfo.y == 0.6) {
+      ctxt.fillStyle = "green";
+      ctxt.fillRect(tileInfo.x, tileInfo.y, tileInfo.s, tileInfo.s);
+    }
+    for (var j = 0; j < self._deformations.length; j++) {
+    //for (var j = 0; j < 1; j++) {
+      var deformation = self._deformations[j];
+      if (deformation.paint) {
+        deformation.paint(ctxt);
       }
     }
+
+    ctxt.restore();
+    if (tileInfo.x == 0.6 && tileInfo.y == 0.6) {
+      ctxt.fillStyle = "rgb(0,0,0)";
+      //ctxt.strokeRect(startX+1, startY+1, lenX-2, lenY-2);
+      ctxt.strokeRect(startX+1 + 0.5, startY+1 + 0.5, lenX-2 -1, lenY-2-1);
+    }
   }
-  ctxt.putImageData(imgdata, 0, 0);
 
   self._texture = new THREE.Texture(self._textureCanvas);
   self._texture.needsUpdate = true;
+  self._texture.magFilter = THREE.NearestFilter;
+  self._texture.minFilter = THREE.NearestFilter;
   return self._texture;
 };
 
